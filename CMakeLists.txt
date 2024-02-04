@@ -44,6 +44,11 @@ include_directories(${GTEST_INCLUDE_DIRS})
 # Add test executable
 add_executable(test_main ${PROJECT_TEST_DIR}/main.cpp)
 
+
+# Link the test executable with your library, GTest, and pthread
+target_link_libraries(test_main my_lib ${GTEST_BOTH_LIBRARIES} pthread)
+
+
 # Link the test executable with your library and GTest
 target_link_libraries(test_main my_lib ${GTEST_BOTH_LIBRARIES})
 
