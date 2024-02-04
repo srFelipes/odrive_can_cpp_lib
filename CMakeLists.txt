@@ -10,15 +10,25 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(PROJECT_SOURCE_DIR  src)
 set(PROJECT_INCLUDE_DIR include)
 set(PROJECT_TEST_DIR test)
+set(PROJECT_SCRIPTS_DIR scripts)  # New scripts folder 
+
+include(CheckIncludeFile)
+check_include_file("linux/can.h" HAVE_LINUX_CAN_H)
+
+if (HAVE_LINUX_CAN_H)
+    message(STATUS "Found linux can headers, enabling.")
+else()
+    message(STATUS "Linux can headers not found, disabling")
+endif()
 
 # Add library source files
 set(LIB_SOURCES
-    ${PROJECT_SOURCE_DIR}/odrive_can.cpp
+    ${PROJECT_SOURCE_DIR}/odrive_can_cpp.cpp
 )
 
 # Add library header files
 set(LIB_HEADERS
-    ${PROJECT_INCLUDE_DIR}/odrive_can.hpp
+    ${PROJECT_INCLUDE_DIR}/odrive_can_cpp.hpp
 )
 
 # Create the library
@@ -42,3 +52,10 @@ enable_testing()
 
 # Add the test to the CTest framework
 add_test(NAME my_lib_test COMMAND test_main)
+
+# Add scripts executable
+
+add_executable(script_exe ${PROJECT_SCRIPTS_DIR}/script.cpp)  # Replace with your actual script file
+
+# Link the scripts executable with your library
+target_link_libraries(script_exe my_lib) 

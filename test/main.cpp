@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "odrive_can.hpp"
+#include "odrive_can_cpp.hpp"
 
 TEST(importingTests,importLib){
     #ifdef ODRIVE_CAN
