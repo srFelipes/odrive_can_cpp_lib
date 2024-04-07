@@ -12,21 +12,21 @@ namespace odrive_can{
 
 OdriveCan::OdriveCan(const std::string& interface, uint32_t filterId)
 {  
-    socket_ = socket(PF_CAN, SOCK_RAW, CAN_RAW);
-    if (socket_ == -1) {
+    can_socket = socket(PF_CAN, SOCK_RAW, CAN_RAW);
+    if (can_socket == -1) {
         throw std::runtime_error("Failed to create socket");
     }
     // Set the interface name
     struct ifreq ifr;
     std::strncpy(ifr.ifr_name, interface.c_str(), IFNAMSIZ);
-    ioctl(socket_, SIOCGIFINDEX, &ifr);
+    ioctl(can_socket, SIOCGIFINDEX, &ifr);
 
     // Bind the socket to the CAN interface
     struct sockaddr_can addr;
     addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
-    if (bind(socket_, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) == -1) {
-        close(socket_);
+    if (bind(can_socket, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) == -1) {
+        close(can_socket);
         throw std::runtime_error("Failed to bind socket to interface");
     }
 
@@ -35,20 +35,20 @@ OdriveCan::OdriveCan(const std::string& interface, uint32_t filterId)
     filter[0].can_id = filterId;
     filter[0].can_mask = CAN_SFF_MASK;
 
-    setsockopt(socket_, SOL_CAN_RAW, CAN_RAW_FILTER, &filter, sizeof(filter));
+    setsockopt(can_socket, SOL_CAN_RAW, CAN_RAW_FILTER, &filter, sizeof(filter));
 
 }
 
 OdriveCan::~OdriveCan()
 {
-    close(socket_);
+    close(can_socket);
 }
-int OdriveCan::sendMessage(const can_frame& frame) {
-    return write(socket_, &frame, sizeof(frame));
+int OdriveCan::send_message(const can_frame& frame) {
+    return write(can_socket, &frame, sizeof(frame));
 }
 
-int OdriveCan::receiveMessage(can_frame& frame) {
-    return read(socket_, &frame, sizeof(frame));
+int OdriveCan::receive_message(can_frame& frame) {
+    return read(can_socket, &frame, sizeof(frame));
 }
 
 }

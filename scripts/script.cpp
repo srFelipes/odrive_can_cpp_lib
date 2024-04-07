@@ -7,7 +7,7 @@ int main(){
     std::string data;
     for (int i=0; i<10; i++){
         
-        odrv.receiveMessage(frame);
+        odrv.receive_message(frame);
         std::cout << "message was" << std::endl;
         data = "";
         for (int j = 0; j < frame.can_dlc; ++j) {
