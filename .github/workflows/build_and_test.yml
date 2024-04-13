@@ -1,0 +1,32 @@
+name: Build and Test
+
+on:
+  push:
+    branches:
+      - main  # Change this to your main branch name
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # Specify that this workflow runs on Ubuntu
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2  # Action to checkout your repository's code
+
+    - name: Set up CMake
+      uses: martinlindhe/cmake-action@v1  # Action to set up CMake
+
+    - name: Build
+      run: |
+        mkdir -p build
+        cd build
+        cmake ..
+        make
+    - name: Set vcan up
+      run: | 
+        sudo bash set_vcan_up.sh
+
+    - name: Run tests
+      run: |
+        cd build
+        ctest --output-on-failure
