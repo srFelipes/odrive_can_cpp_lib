@@ -8,6 +8,7 @@
 #include <linux/can.h>
 #include "odrive_enums.hpp"
 
+
 namespace odrive_can{
     typedef struct 
     {
@@ -52,16 +53,64 @@ namespace odrive_can{
     private:
         /* data */
         int can_socket;
+        
+        int send_message(const can_frame& frame);
+
+        int receive_message(can_frame& frame);
     public:
+
+        /**
+         * @brief Odrive axis address
+         * 
+         */
         sockaddr_can address;
+
+        /**
+         * @brief Last received frame
+         * 
+         */
         can_frame last_frame;
+
+        /**
+         * @brief last received heartbeat message
+         * 
+         */
         heartbeat_t last_heartbeat;
+
+        /**
+         * @brief current state and control mode of the axis
+         * 
+         */
         ControlMode current_control_mode;
 
-        OdriveCan(const std::string& interface, uint32_t filterId);
+        /**
+         * @brief odrive axis id, the odrv arbitration id is axis_id<<5 | cmd_id
+         * 
+         */
+        uint32_t axis_id;
+
+        /**
+         * @brief Construct a new Odrive Can object
+         * 
+         * @param interface String containing the name of the interface to use, vcan0 for test\
+         *                   can0 for usage with the real device 
+         * @param filterId Axis Id note that it should be  axis_id << 5
+         */
+        OdriveCan(const std::string& interface, uint32_t axis_id_param);
+
+        /**
+         * @brief Destroy the Odrive Can object
+         * 
+         */
         ~OdriveCan();
-        int send_message(const can_frame& frame);
-        int receive_message(can_frame& frame);
+
+        
+
+        /**
+         * @brief sends an e_stop message, cmd_id = 0x002, the Odrive stops inmeditally
+         * 
+         * @return int 0 on success
+         */
         int e_stop();
         MotorError get_motor_error();
         EncoderError get_encoder_error();
@@ -84,6 +133,7 @@ namespace odrive_can{
         int set_position_gain(float pos_gain);
         int set_vel_gains(float vel_gain, float vel_integrator_gain);
         ControllerError get_controller_error();
+        int odrv_can_id(cmd_id cmd);
     };
 
 }

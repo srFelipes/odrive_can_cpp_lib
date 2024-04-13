@@ -8,9 +8,13 @@
 #include <linux/can/raw.h>
 #include <string>
 #include <iostream>
+
+#define ODRV_CAN_MASK 0x7e0
+
 namespace odrive_can{
 
-OdriveCan::OdriveCan(const std::string& interface, uint32_t filterId)
+
+OdriveCan::OdriveCan(const std::string& interface, uint32_t axis_id_param)
 {  
     can_socket = socket(PF_CAN, SOCK_RAW, CAN_RAW);
     if (can_socket == -1) {
@@ -32,10 +36,11 @@ OdriveCan::OdriveCan(const std::string& interface, uint32_t filterId)
 
     // Set filter (accept only specific CAN IDs)
     can_filter filter[1];
-    filter[0].can_id = filterId;
-    filter[0].can_mask = CAN_SFF_MASK;
+    filter[0].can_id = axis_id_param<<5;
+    filter[0].can_mask = ODRV_CAN_MASK;
 
     setsockopt(can_socket, SOL_CAN_RAW, CAN_RAW_FILTER, &filter, sizeof(filter));
+    axis_id = axis_id_param;
 
 }
 
@@ -49,6 +54,18 @@ int OdriveCan::send_message(const can_frame& frame) {
 
 int OdriveCan::receive_message(can_frame& frame) {
     return read(can_socket, &frame, sizeof(frame));
+}
+
+int OdriveCan::odrv_can_id(cmd_id cmd){
+    return ((axis_id<<5) | static_cast<int>(cmd));
+}
+
+int OdriveCan::e_stop(){
+    can_frame frame;
+    frame.can_id = odrv_can_id(cmd_id::ESTOP);
+    frame.can_dlc = 0;
+    send_message(frame);
+    return 0;
 }
 
 }
