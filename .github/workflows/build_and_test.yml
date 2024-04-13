@@ -29,6 +29,7 @@ jobs:
         make
     - name: Load vcan module and set up vcan0
       run: |
+        sudo apt-get install -y linux-modules-extra-$(uname -r)
         sudo modprobe vcan
         sudo ip link add dev vcan0 type vcan
         sudo ip link set up vcan0
