@@ -12,7 +12,10 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v2  # Action to checkout your repository's code
-
+    
+    - name: Set up google test
+      uses: Bacondish2023/setup-googletest@v1
+        
     - name: Set up CMake
       uses: jwlawson/actions-setup-cmake@v2.0.2
       with:
