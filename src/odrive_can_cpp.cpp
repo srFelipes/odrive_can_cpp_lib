@@ -41,11 +41,17 @@ OdriveCan::OdriveCan(const std::string& interface, uint32_t axis_id_param)
 
     setsockopt(can_socket, SOL_CAN_RAW, CAN_RAW_FILTER, &filter, sizeof(filter));
     axis_id = axis_id_param;
-
+    listening_thread = std::thread(&OdriveCan::listen_routine,this);
+}
+void OdriveCan::listen_routine(){
+    return;
 }
 
 OdriveCan::~OdriveCan()
-{
+{   
+    if (listening_thread.joinable()) {
+            listening_thread.join();
+        }
     close(can_socket);
 }
 int OdriveCan::send_message(const can_frame& frame) {
@@ -66,6 +72,9 @@ int OdriveCan::e_stop(){
     frame.can_dlc = 0;
     send_message(frame);
     return 0;
+}
+MotorError OdriveCan::get_motor_error(){
+    return MotorError::NONE;
 }
 
 }

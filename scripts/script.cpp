@@ -2,7 +2,7 @@
 #include <iostream>
 
 int main(){
-    odrive_can::OdriveCan odrv = odrive_can::OdriveCan("vcan0",0x69);
+    odrive_can::OdriveCan odrv("vcan0",0x69);
     can_frame frame;
     std::string data;
     for (int i=0; i<10; i++){

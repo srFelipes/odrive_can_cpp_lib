@@ -2,11 +2,13 @@
 #define ODRIVE_CAN
 
 #include <stdlib.h>
-
+#include <thread>
 
 #include <string>
 #include <linux/can.h>
 #include "odrive_enums.hpp"
+
+
 
 
 namespace odrive_can{
@@ -51,13 +53,20 @@ namespace odrive_can{
     class OdriveCan
     {
     private:
+
         /* data */
         int can_socket;
         
         int send_message(const can_frame& frame);
 
         int receive_message(can_frame& frame);
+
+        void listen_routine();
+
+        
+
     public:
+        std::thread listening_thread;
 
         /**
          * @brief Odrive axis address
