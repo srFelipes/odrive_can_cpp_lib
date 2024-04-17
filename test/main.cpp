@@ -12,7 +12,8 @@
 #include <iostream>
 
 #include <thread>
-
+#include <atomic>
+#include <poll.h>
 #define BUFFER_SIZE 30
 
 TEST(importingTests,importLib){
@@ -70,16 +71,40 @@ class commandsTest : public testing::Test{
         can_socket = create_socket();
         listening_thread = std::thread(&commandsTest::listen_routine, this);
         // odrv = odrive_can::OdriveCan(interface,axis_id);
+        std::cout<<"initiatin";
         
     }
     void TearDown(){
         close(can_socket);
+        if (listening_thread.joinable()) {
+            listening_thread.join();
+        }
+        std::cout<<"ending";
     }
 
     void listen_routine(void){
-        while (!end_listening_flag){
-            read(can_socket, &msg_buffer[msg_count], sizeof(can_frame));
-            msg_count++;
+        bool last_read = true;
+        struct pollfd pollfds[1];
+        pollfds[0].fd = can_socket; // Set the file descriptor to monitor
+        pollfds[0].events = POLLIN; // Set the events to monitor for (in this case, readability)
+
+        while (last_read){
+            last_read = !end_listening_flag;
+            int ret = poll(pollfds, 1, 0); // Monitor indefinitely for events on the file descriptor
+            if (ret > 0) {
+                if (pollfds[0].revents & POLLIN) { // Check if the file descriptor is ready for reading
+                    // Read data from the socket
+                    ssize_t bytes_read = read(can_socket, &msg_buffer[msg_count], sizeof(can_frame));
+                    if (bytes_read < 0) {
+                        // Handle error
+                    } else {
+                        // Increment message count or handle received data
+                        msg_count++;
+                    }
+                }
+            } else if (ret < 0) {
+                // Handle poll error
+            }
         }        
     }
     
@@ -130,6 +155,7 @@ TEST_F(commandsTest,get_motor_error_no_error){
     odrive_can::OdriveCan odrv(interface,axis_id);
     int talker = create_socket();
     MotorError output = odrv.get_motor_error();
+    end_listening_flag = true;
 
 }
 
