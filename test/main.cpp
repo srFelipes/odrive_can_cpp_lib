@@ -69,17 +69,13 @@ class commandsTest : public testing::Test{
     }
     void SetUp(){
         can_socket = create_socket();
-        listening_thread = std::thread(&commandsTest::listen_routine, this);
-        // odrv = odrive_can::OdriveCan(interface,axis_id);
-        std::cout<<"initiatin";
-        
+        listening_thread = std::thread(&commandsTest::listen_routine, this);        
     }
     void TearDown(){
         close(can_socket);
         if (listening_thread.joinable()) {
             listening_thread.join();
         }
-        std::cout<<"ending";
     }
 
     void listen_routine(void){
@@ -123,6 +119,8 @@ class commandsTest : public testing::Test{
         }
     }
 
+    commandsTest(): odrv(interface,axis_id){}
+
     struct sockaddr_can addr;
     int can_socket;
     struct ifreq ifr;
@@ -133,10 +131,10 @@ class commandsTest : public testing::Test{
     int msg_count;
     bool end_listening_flag = false;
     std::thread listening_thread;
+    odrive_can::OdriveCan odrv;
 };
 
 TEST_F(commandsTest, e_stop){
-    odrive_can::OdriveCan odrv(interface,axis_id);
     int result = odrv.e_stop();
     EXPECT_TRUE(0 == result);
     end_listening_flag = true;
@@ -152,7 +150,6 @@ TEST_F(commandsTest, e_stop){
 }
 
 TEST_F(commandsTest,get_motor_error_no_error){
-    odrive_can::OdriveCan odrv(interface,axis_id);
     int talker = create_socket();
     MotorError output = odrv.get_motor_error();
     end_listening_flag = true;
