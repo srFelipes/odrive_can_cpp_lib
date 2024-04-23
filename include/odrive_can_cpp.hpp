@@ -58,6 +58,9 @@ namespace odrive_can{
         int can_socket;
         
         int send_message(const can_frame& frame);
+        int send_message(cmd_id command, bool is_rtr);
+        int send_message(cmd_id command, unsigned char msg[], int msg_size);
+
 
         int receive_message(can_frame& frame);
 

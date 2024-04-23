@@ -12,9 +12,11 @@
 #include <iostream>
 
 #include <thread>
+#include <chrono>
 #include <atomic>
 #include <poll.h>
 #define BUFFER_SIZE 30
+#define TEST_DELAY 2
 
 TEST(importingTests,importLib){
     #ifdef ODRIVE_CAN
@@ -69,7 +71,9 @@ class commandsTest : public testing::Test{
     }
     void SetUp(){
         can_socket = create_socket();
-        listening_thread = std::thread(&commandsTest::listen_routine, this);        
+        listening_thread = std::thread(&commandsTest::listen_routine, this);
+        // msg_count = 0;
+        end_listening_flag = false;
     }
     void TearDown(){
         close(can_socket);
@@ -86,7 +90,7 @@ class commandsTest : public testing::Test{
 
         while (last_read){
             last_read = !end_listening_flag;
-            int ret = poll(pollfds, 1, 0); // Monitor indefinitely for events on the file descriptor
+            int ret = poll(pollfds, 1, TEST_DELAY); // Monitor indefinitely for events on the file descriptor
             if (ret > 0) {
                 if (pollfds[0].revents & POLLIN) { // Check if the file descriptor is ready for reading
                     // Read data from the socket
@@ -101,22 +105,11 @@ class commandsTest : public testing::Test{
             } else if (ret < 0) {
                 // Handle poll error
             }
-        }        
+        }
     }
     
     void send_to_socket(int soc, can_frame frame){
         write(soc, &frame, sizeof(frame));
-    }
-
-    void wait_for_msg_and_answer(can_frame msg_to_wait, can_frame answer){
-        int soc = create_socket();
-        can_frame last_msg;
-        while (!end_listening_flag){
-            read(can_socket, &last_msg, sizeof(can_frame));
-            if (can_frame_comparator(msg_to_wait,last_msg)){
-                send_to_socket(soc,answer);
-            }
-        }
     }
 
     commandsTest(): odrv(interface,axis_id){}
@@ -128,10 +121,44 @@ class commandsTest : public testing::Test{
     uint32_t axis_id = 4; //no particular reason for this number
     
     can_frame msg_buffer[BUFFER_SIZE];
-    int msg_count;
+    int msg_count = 0;
     bool end_listening_flag = false;
     std::thread listening_thread;
     odrive_can::OdriveCan odrv;
+    public:
+    void wait_for_msg_and_answer(can_frame msg_to_wait, can_frame answer){
+        int soc = create_socket();
+        can_frame last_msg;
+        int read_size;
+        bool break_the_loop = true;
+        
+        bool last_read = true;
+        struct pollfd pollfds[1];
+        pollfds[0].fd = soc; // Set the file descriptor to monitor
+        pollfds[0].events = POLLIN; // Set the events to monitor for (in this case, readability)
+
+        while (last_read){
+            last_read = !end_listening_flag;
+            int ret = poll(pollfds, 1, TEST_DELAY); // Monitor indefinitely for events on the file descriptor
+            if (ret > 0) {
+                if (pollfds[0].revents & POLLIN) { // Check if the file descriptor is ready for reading
+                    // Read data from the socket
+                    ssize_t bytes_read = read(soc, &last_msg, sizeof(can_frame));
+
+                    if (bytes_read < 0) {
+                        // Handle error
+                    } else {
+                        // Increment message count or handle received data
+                        if (can_frame_comparator(msg_to_wait,last_msg)){
+                            send_to_socket(soc,answer);
+                        }
+                    }
+                }
+            } else if (ret < 0) {
+                // Handle poll error
+            }
+        }
+    }
 };
 
 TEST_F(commandsTest, e_stop){
@@ -150,9 +177,32 @@ TEST_F(commandsTest, e_stop){
 }
 
 TEST_F(commandsTest,get_motor_error_no_error){
-    int talker = create_socket();
+    
+    can_frame expected_petition;
+    expected_petition.can_id = (4<<5)|0x003; //4 is odrv id, 3 is cmd_id
+    expected_petition.can_id |= CAN_RTR_FLAG;
+    expected_petition.len = 0;
+
+    can_frame given_answer;
+    given_answer.can_id = (4<<5)|0x003; //4 is odrv id, 3 is cmd_id
+    given_answer.len = 8;
+    given_answer.data[0] = 0;    //MotorError.NONE;
+
+    std::thread wfmaa_thread(&commandsTest::wait_for_msg_and_answer,this,
+                expected_petition,given_answer);
+    std::this_thread::sleep_for(std::chrono::milliseconds(TEST_DELAY)); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output = odrv.get_motor_error();
+    
+
     end_listening_flag = true;
+    
+    if (wfmaa_thread.joinable()){
+        wfmaa_thread.join();
+    }
+    EXPECT_TRUE(can_frame_comparator(expected_petition, msg_buffer[0]));
+    EXPECT_TRUE(can_frame_comparator(given_answer, msg_buffer[1]));
+    EXPECT_TRUE(MotorError::NONE == output);
+
 
 }
 

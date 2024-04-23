@@ -67,15 +67,27 @@ int OdriveCan::odrv_can_id(cmd_id cmd){
 }
 
 int OdriveCan::e_stop(){
-    can_frame frame;
-    frame.can_id = odrv_can_id(cmd_id::ESTOP);
-    frame.can_dlc = 0;
-    send_message(frame);
+    send_message(cmd_id::ESTOP,false);
     return 0;
 }
 MotorError OdriveCan::get_motor_error(){
+    send_message(cmd_id::MOTOR_ERROR,true);
+    can_frame ans;
+    receive_message(ans);
     return MotorError::NONE;
 }
 
+int OdriveCan::send_message(cmd_id command, bool is_rtr){
+    can_frame frame;
+    frame.can_id = odrv_can_id(command);
+    if (is_rtr){
+        frame.can_id |= CAN_RTR_FLAG;
+    }
+    frame.can_dlc = 0;
+    return send_message(frame);
+}
+int OdriveCan::send_message(cmd_id command, unsigned char msg[], int msg_size){
+    return 0;
+}
 }
 
