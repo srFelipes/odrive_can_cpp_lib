@@ -83,14 +83,21 @@ int OdriveCan::e_stop(){
     send_message(cmd_id::ESTOP,false);
     return 0;
 }
+
 MotorError OdriveCan::get_motor_error(){
     send_message(cmd_id::MOTOR_ERROR,true);
     can_frame ans;
     receive_message(ans);
-    return static_cast<MotorError>(ans.data[0]);
+    uint64_t output_candidate = (ans.data[0]);
+    for (int i = 0; i<MOTOR_ERROR_LEN;i++){
+        if (output_candidate == all_the_motor_errors[i]){
+             return static_cast<MotorError>(output_candidate);
+        }
+    }
+    char error_msg[50]; // Assuming 20 characters are sufficient for the hexadecimal representation
+    sprintf(error_msg, "Received unexpected data frame  0x%lx", output_candidate); // Format output_candidate in hexadecimal
+    throw UnexpectedMessageException(error_msg);
+    
 }
-
-
-
 }
 

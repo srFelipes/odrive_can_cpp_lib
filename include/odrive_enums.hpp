@@ -344,3 +344,51 @@ enum class cmd_id{
     CAN_OPEN_HEARTBEAT	= 0x700
 
 };
+
+#define MOTOR_ERROR_LEN 28
+
+static uint64_t all_the_motor_errors[] = {
+    static_cast<uint64_t>(MotorError::NONE),
+    static_cast<uint64_t>(MotorError::PHASE_RESISTANCE_OUT_OF_RANGE),
+    static_cast<uint64_t>(MotorError::PHASE_INDUCTANCE_OUT_OF_RANGE),
+    static_cast<uint64_t>(MotorError::DRV_FAULT),
+    static_cast<uint64_t>(MotorError::CONTROL_DEADLINE_MISSED),
+    static_cast<uint64_t>(MotorError::MODULATION_MAGNITUDE),
+    static_cast<uint64_t>(MotorError::CURRENT_SENSE_SATURATION),
+    static_cast<uint64_t>(MotorError::CURRENT_LIMIT_VIOLATION),
+    static_cast<uint64_t>(MotorError::MODULATION_IS_NAN),
+    static_cast<uint64_t>(MotorError::MOTOR_THERMISTOR_OVER_TEMP),
+    static_cast<uint64_t>(MotorError::FET_THERMISTOR_OVER_TEMP),
+    static_cast<uint64_t>(MotorError::TIMER_UPDATE_MISSED),
+    static_cast<uint64_t>(MotorError::CURRENT_MEASUREMENT_UNAVAILABLE),
+    static_cast<uint64_t>(MotorError::CONTROLLER_FAILED),
+    static_cast<uint64_t>(MotorError::I_BUS_OUT_OF_RANGE),
+    static_cast<uint64_t>(MotorError::BRAKE_RESISTOR_DISARMED),
+    static_cast<uint64_t>(MotorError::SYSTEM_LEVEL),
+    static_cast<uint64_t>(MotorError::BAD_TIMING),
+    static_cast<uint64_t>(MotorError::UNKNOWN_PHASE_ESTIMATE),
+    static_cast<uint64_t>(MotorError::UNKNOWN_PHASE_VEL),
+    static_cast<uint64_t>(MotorError::UNKNOWN_TORQUE),
+    static_cast<uint64_t>(MotorError::UNKNOWN_CURRENT_COMMAND),
+    static_cast<uint64_t>(MotorError::UNKNOWN_CURRENT_MEASUREMENT),
+    static_cast<uint64_t>(MotorError::UNKNOWN_VBUS_VOLTAGE),
+    static_cast<uint64_t>(MotorError::UNKNOWN_VOLTAGE_COMMAND),
+    static_cast<uint64_t>(MotorError::UNKNOWN_GAINS),
+    static_cast<uint64_t>(MotorError::CONTROLLER_INITIALIZING),
+    static_cast<uint64_t>(MotorError::UNBALANCED_PHASES)
+};
+
+// Custom exception class for unexpected messages
+class UnexpectedMessageException : public std::exception {
+public:
+    UnexpectedMessageException(const std::string& message)
+        : m_message(message) {}
+
+    // Override what() method to provide error message
+    const char* what() const noexcept override {
+        return m_message.c_str();
+    }
+
+private:
+    std::string m_message;
+};
