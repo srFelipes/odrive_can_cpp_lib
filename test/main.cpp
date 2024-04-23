@@ -192,8 +192,6 @@ TEST_F(commandsTest,get_motor_error_no_error){
                 expected_petition,given_answer);
     std::this_thread::sleep_for(std::chrono::milliseconds(TEST_DELAY)); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output = odrv.get_motor_error();
-    
-
     end_listening_flag = true;
     
     if (wfmaa_thread.joinable()){
@@ -202,6 +200,33 @@ TEST_F(commandsTest,get_motor_error_no_error){
     EXPECT_TRUE(can_frame_comparator(expected_petition, msg_buffer[0]));
     EXPECT_TRUE(can_frame_comparator(given_answer, msg_buffer[1]));
     EXPECT_TRUE(MotorError::NONE == output);
+
+
+}
+TEST_F(commandsTest,get_motor_error_phase_r_out_of_r){
+    
+    can_frame expected_petition;
+    expected_petition.can_id = (4<<5)|0x003; //4 is odrv id, 3 is cmd_id
+    expected_petition.can_id |= CAN_RTR_FLAG;
+    expected_petition.len = 0;
+
+    can_frame given_answer;
+    given_answer.can_id = (4<<5)|0x003; //4 is odrv id, 3 is cmd_id
+    given_answer.len = 8;
+    given_answer.data[0] = 1;    //MotorError.NONE;
+
+    std::thread wfmaa_thread(&commandsTest::wait_for_msg_and_answer,this,
+                expected_petition,given_answer);
+    std::this_thread::sleep_for(std::chrono::milliseconds(TEST_DELAY)); //this delay is so the thread can start TODO, use a lock until the socket is created
+    MotorError output = odrv.get_motor_error();
+    end_listening_flag = true;
+    
+    if (wfmaa_thread.joinable()){
+        wfmaa_thread.join();
+    }
+    EXPECT_TRUE(can_frame_comparator(expected_petition, msg_buffer[0]));
+    EXPECT_TRUE(can_frame_comparator(given_answer, msg_buffer[1]));
+    EXPECT_TRUE(MotorError::PHASE_RESISTANCE_OUT_OF_RANGE == output);
 
 
 }
