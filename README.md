@@ -1,4 +1,5 @@
 # odrive_can_cpp_lib
+![Tests](https://github.com/srFelipes/odrive_can_cpp_lib/actions/workflows/build_and_test.yml/badge.svg)
 ## Overview
 
 odrive_can_cpp_lib is a C++ library designed to facilitate communication with ODrive motor controllers using the CAN bus protocol. This library provides a convenient interface for developers to interact with ODrive devices, enabling control and monitoring of motor functions over a CAN network. For the protocol specification check [Odrive CAN protocol](https://docs.odriverobotics.com/v/0.5.6/can-protocol.html)
