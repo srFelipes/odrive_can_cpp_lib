@@ -98,7 +98,5 @@ MotorError OdriveCan::get_motor_error(){
     char error_msg[50]; // Assuming 20 characters are sufficient for the hexadecimal representation
     sprintf(error_msg, "Received unexpected data frame  0x%lx", output_candidate); // Format output_candidate in hexadecimal
     throw UnexpectedMessageException(error_msg);
-    
 }
 }
-

@@ -124,6 +124,12 @@ namespace odrive_can{
          * @return int 0 on success
          */
         int e_stop();
+
+        /**
+         * @brief Gets the motor error, in case of no error, return 0
+         * 
+         * @return MotorError an enum of the current motor error
+         */
         MotorError get_motor_error();
         EncoderError get_encoder_error();
         int set_axis_node_id(int new_address);
