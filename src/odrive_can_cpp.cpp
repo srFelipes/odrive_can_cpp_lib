@@ -88,7 +88,8 @@ MotorError OdriveCan::get_motor_error(){
     send_message(cmd_id::MOTOR_ERROR,true);
     can_frame ans;
     receive_message(ans);
-    uint64_t output_candidate = (ans.data[0]);
+    uint64_t output_candidate;
+    memcpy(&output_candidate,ans.data,ans.len);
     for (int i = 0; i<MOTOR_ERROR_LEN;i++){
         if (output_candidate == all_the_motor_errors[i]){
              return static_cast<MotorError>(output_candidate);
