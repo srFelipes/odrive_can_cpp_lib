@@ -74,7 +74,11 @@ void OdriveCan::listen_routine(){
                     uint16_t cmd = last_frame.can_id&ODRV_CMD_MASK;
                     cmd += 0;
                     if (static_cast<uint16_t>(cmd_id::HEARTBEAT) == cmd){
-                        memcpy(&last_heartbeat.axis_state,&last_frame.data[4],1);                        
+                        memcpy(&last_heartbeat.axis_state,&last_frame.data[4],1);
+                        last_heartbeat.controller_error_flag = last_frame.data[7]&1;
+                        last_heartbeat.motor_error_flag = last_frame.data[5];
+                        last_heartbeat.encoder_error_flag = last_frame.data[6];
+                        last_heartbeat.trajectory_done = last_frame.data[7]>>7;
                     }
                 }
             }
@@ -146,13 +150,13 @@ bool heartbeat_comparator(heartbeat_t expected, heartbeat_t actual){
     if (expected.axis_state != actual.axis_state){
         return false;
     }
-    if (expected.controller_error != actual.controller_error){
+    if (expected.controller_error_flag != actual.controller_error_flag){
         return false;
     }
-    if (expected.encoder_error != actual.encoder_error){
+    if (expected.encoder_error_flag != actual.encoder_error_flag){
         return false;
     }
-    if (expected.motor_error != actual.motor_error){
+    if (expected.motor_error_flag != actual.motor_error_flag){
         return false;
     }
     if (expected.trajectory_done != actual.trajectory_done){

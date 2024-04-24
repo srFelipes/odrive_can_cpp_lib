@@ -16,9 +16,9 @@ namespace odrive_can{
     {
         AxisError axis_error;
         AxisState axis_state;
-        MotorError motor_error;
-        EncoderError encoder_error;
-        ControllerError controller_error;
+        bool motor_error_flag;
+        bool encoder_error_flag;
+        bool controller_error_flag;
         bool trajectory_done;
     }heartbeat_t;
 
