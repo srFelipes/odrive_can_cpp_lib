@@ -16,7 +16,11 @@
 #include <atomic>
 #include <poll.h>
 #define BUFFER_SIZE 30
-#define TEST_DELAY 2
+#define TEST_DELAY 1
+
+void test_sleep(){
+    std::this_thread::sleep_for(std::chrono::milliseconds(TEST_DELAY));
+}
 
 TEST(importingTests,importLib){
     #ifdef ODRIVE_CAN
@@ -28,7 +32,8 @@ TEST(importingTests,importLib){
 }
 
 TEST(importingTest,canUp){
-    EXPECT_NO_THROW(odrive_can::OdriveCan odrv("vcan0",0x69));
+    EXPECT_NO_THROW(odrive_can::OdriveCan odrv("vcan0",0x69);odrv.listening = false;);
+    
 }
 
 bool can_frame_comparator(can_frame expected, can_frame actual){
@@ -72,10 +77,10 @@ class commandsTest : public testing::Test{
     void SetUp(){
         can_socket = create_socket();
         listening_thread = std::thread(&commandsTest::listen_routine, this);
-        // msg_count = 0;
         end_listening_flag = false;
     }
     void TearDown(){
+        
         close(can_socket);
         if (listening_thread.joinable()) {
             listening_thread.join();
@@ -165,6 +170,7 @@ TEST_F(commandsTest, e_stop){
     int result = odrv.e_stop();
     EXPECT_TRUE(0 == result);
     end_listening_flag = true;
+    odrv.listening = false;
     listening_thread.join();
     EXPECT_TRUE(1 == msg_count);
 
@@ -191,9 +197,11 @@ TEST_F(commandsTest,get_motor_error_no_error){
 
     std::thread wfmaa_thread(&commandsTest::wait_for_msg_and_answer,this,
                 expected_petition,given_answer);
-    std::this_thread::sleep_for(std::chrono::milliseconds(TEST_DELAY)); //this delay is so the thread can start TODO, use a lock until the socket is created
+    test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output = odrv.get_motor_error();
+    odrv.listening = false;
     end_listening_flag = true;
+    
     
     if (wfmaa_thread.joinable()){
         wfmaa_thread.join();
@@ -219,9 +227,10 @@ TEST_F(commandsTest,get_motor_error_phase_r_out_of_r){
 
     std::thread wfmaa_thread(&commandsTest::wait_for_msg_and_answer,this,
                 expected_petition,given_answer);
-    std::this_thread::sleep_for(std::chrono::milliseconds(TEST_DELAY)); //this delay is so the thread can start TODO, use a lock until the socket is created
+    test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output = odrv.get_motor_error();
     end_listening_flag = true;
+    odrv.listening = false;
     
     if (wfmaa_thread.joinable()){
         wfmaa_thread.join();
@@ -248,10 +257,11 @@ TEST_F(commandsTest,get_motor_error_answer_unknown){
 
     std::thread wfmaa_thread(&commandsTest::wait_for_msg_and_answer,this,
                 expected_petition,given_answer);
-    std::this_thread::sleep_for(std::chrono::milliseconds(TEST_DELAY)); //this delay is so the thread can start TODO, use a lock until the socket is created
+    test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output;
     EXPECT_THROW(output = odrv.get_motor_error(),UnexpectedMessageException);
     end_listening_flag = true;
+    odrv.listening = false;
     
     if (wfmaa_thread.joinable()){ 
         wfmaa_thread.join();
@@ -275,10 +285,11 @@ TEST_F(commandsTest,get_motor_error_max_value){
 
     std::thread wfmaa_thread(&commandsTest::wait_for_msg_and_answer,this,
                 expected_petition,given_answer);
-    std::this_thread::sleep_for(std::chrono::milliseconds(TEST_DELAY)); //this delay is so the thread can start TODO, use a lock until the socket is created
+    test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output;
     output = odrv.get_motor_error();
     end_listening_flag = true;
+    odrv.listening = false;
     
     if (wfmaa_thread.joinable()){
         wfmaa_thread.join();
@@ -288,6 +299,43 @@ TEST_F(commandsTest,get_motor_error_max_value){
     EXPECT_TRUE(MotorError::UNBALANCED_PHASES == output);
 }
 
+TEST_F(commandsTest,periodic_messages_heartbeat_3_states){
+    can_frame heartbeat_msg;
+    heartbeat_msg.can_id = (4<<5)|0x001; //4 is odrv id, 1 is cmd_id
+    heartbeat_msg.len = 8;
+    memset(&heartbeat_msg.data,0,8);
+    heartbeat_msg.data[4] = 1;
+    int talk_soc = create_socket();
+    //FIRST MSG
+    send_to_socket(talk_soc,heartbeat_msg);
+    test_sleep();
+    odrive_can::heartbeat_t expected;
+    expected.axis_error = AxisError::NONE;
+    expected.axis_state = AxisState::IDLE;
+    expected.controller_error = ControllerError::NONE;
+    expected.encoder_error = EncoderError::NONE;
+    expected.motor_error = MotorError::NONE;
+    expected.trajectory_done = false;
+    
+    EXPECT_TRUE(odrive_can::heartbeat_comparator(expected,odrv.last_heartbeat));
+
+    //SECOND MSG
+    heartbeat_msg.data[4] = 2;
+    send_to_socket(talk_soc,heartbeat_msg);
+    test_sleep();
+    expected.axis_state = AxisState::STARTUP_SEQUENCE;
+    EXPECT_TRUE(odrive_can::heartbeat_comparator(expected,odrv.last_heartbeat));
+
+    //THIRD MSG
+    heartbeat_msg.data[4] = 3;
+    send_to_socket(talk_soc,heartbeat_msg);
+    test_sleep();
+    expected.axis_state = AxisState::FULL_CALIBRATION_SEQUENCE;
+    EXPECT_TRUE(odrive_can::heartbeat_comparator(expected,odrv.last_heartbeat));
+    odrv.listening = false;
+    end_listening_flag = true;
+    
+}
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv); 

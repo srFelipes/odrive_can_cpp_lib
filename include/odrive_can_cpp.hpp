@@ -55,7 +55,8 @@ namespace odrive_can{
     private:
 
         /* data */
-        int can_socket;
+        int talk_socket;
+        int listen_socket;
         
         int send_message(const can_frame& frame);
         int send_message(cmd_id command, bool is_rtr);
@@ -69,6 +70,16 @@ namespace odrive_can{
         
 
     public:
+        const std::string this_interface;
+        /**
+         * @brief boolean variable used to signal when to kill the listening_thread
+         * 
+         */
+        bool listening;
+        /**
+         * @brief the thread that is continuosly listening to the can_thread
+         * 
+         */
         std::thread listening_thread;
 
         /**
@@ -154,6 +165,7 @@ namespace odrive_can{
         int odrv_can_id(cmd_id cmd);
     };
 
+    bool heartbeat_comparator(heartbeat_t expected, heartbeat_t actual);
 }
 
 
