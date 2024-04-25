@@ -14,7 +14,7 @@
 namespace odrive_can{
     typedef struct 
     {
-        AxisError axis_error;
+        uint32_t axis_error;
         AxisState axis_state;
         bool motor_error_flag;
         bool encoder_error_flag;
@@ -164,8 +164,6 @@ namespace odrive_can{
         ControllerError get_controller_error();
         int odrv_can_id(cmd_id cmd);
     };
-
-    bool heartbeat_comparator(heartbeat_t expected, heartbeat_t actual);
 }
 
 

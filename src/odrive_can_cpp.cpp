@@ -35,7 +35,7 @@ int create_socket(const std::string& interface){
             throw std::runtime_error("Failed to bind socket to interface");
         }
         return output_socket;
-    }
+}
 
 OdriveCan::OdriveCan(const std::string& interface, uint32_t axis_id_param)
 : this_interface(interface), axis_id(axis_id_param)
@@ -74,6 +74,10 @@ void OdriveCan::listen_routine(){
                     uint16_t cmd = last_frame.can_id&ODRV_CMD_MASK;
                     cmd += 0;
                     if (static_cast<uint16_t>(cmd_id::HEARTBEAT) == cmd){
+                        last_heartbeat.axis_error =  last_frame.data[0]
+                                                    +(last_frame.data[1]<<8)
+                                                    +(last_frame.data[2]<<16)
+                                                    +(last_frame.data[3]<<24);
                         memcpy(&last_heartbeat.axis_state,&last_frame.data[4],1);
                         last_heartbeat.controller_error_flag = last_frame.data[7]&1;
                         last_heartbeat.motor_error_flag = last_frame.data[5];
@@ -143,25 +147,5 @@ MotorError OdriveCan::get_motor_error(){
     throw UnexpectedMessageException(error_msg);
 }
 
-bool heartbeat_comparator(heartbeat_t expected, heartbeat_t actual){
-    if (expected.axis_error != actual.axis_error){
-        return false;
-    }
-    if (expected.axis_state != actual.axis_state){
-        return false;
-    }
-    if (expected.controller_error_flag != actual.controller_error_flag){
-        return false;
-    }
-    if (expected.encoder_error_flag != actual.encoder_error_flag){
-        return false;
-    }
-    if (expected.motor_error_flag != actual.motor_error_flag){
-        return false;
-    }
-    if (expected.trajectory_done != actual.trajectory_done){
-        return false;
-    }
-    return true;
-}
+
 }

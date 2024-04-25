@@ -37,18 +37,31 @@ TEST(importingTest,canUp){
 }
 
 bool can_frame_comparator(can_frame expected, can_frame actual){
-    if (expected.can_id != actual.can_id){
-        return false;
-    }
-    if (expected.len != actual.len){
-        return false;
-    }
+    EXPECT_TRUE(expected.can_id == actual.can_id);
+    EXPECT_TRUE(expected.len == actual.len);
     for (int i = 0; i< expected.len;i++){
-        if (expected.data[i] != actual.data[i]){
-            return false;
-        }
+        EXPECT_TRUE(expected.data[i] == actual.data[i]);
     }
     return true;
+}
+void heartbeat_comparator(odrive_can::heartbeat_t expected, odrive_can::heartbeat_t actual){
+    EXPECT_TRUE(expected.axis_error == actual.axis_error) << "expected = " 
+                << expected.axis_error << "|actual = " << actual.axis_error;
+
+    EXPECT_TRUE (expected.axis_state == actual.axis_state)<< "expected = " 
+                << static_cast<int>(expected.axis_state) << "|actual = " << static_cast<int>(actual.axis_state);
+
+    EXPECT_TRUE (expected.controller_error_flag == actual.controller_error_flag)<< "expected = " 
+                << expected.controller_error_flag << "|actual = " << actual.controller_error_flag;
+
+    EXPECT_TRUE (expected.encoder_error_flag == actual.encoder_error_flag)<< "expected = " 
+                << expected.encoder_error_flag << "|actual = " << actual.encoder_error_flag;
+
+    EXPECT_TRUE (expected.motor_error_flag == actual.motor_error_flag)<< "expected = " 
+                << expected.motor_error_flag << "|actual = " << actual.motor_error_flag;
+
+    EXPECT_TRUE (expected.trajectory_done == actual.trajectory_done)<< "expected = " 
+                << expected.trajectory_done << "|actual = " << actual.trajectory_done;
 }
 
 class commandsTest : public testing::Test{
@@ -310,28 +323,28 @@ TEST_F(commandsTest,periodic_messages_heartbeat_3_states){
     send_to_socket(talk_soc,heartbeat_msg);
     test_sleep();
     odrive_can::heartbeat_t expected;
-    expected.axis_error = AxisError::NONE;
+    expected.axis_error = static_cast<uint32_t>(AxisError::NONE);
     expected.axis_state = AxisState::IDLE;
     expected.controller_error_flag = false;
     expected.encoder_error_flag = false;
     expected.motor_error_flag = false;
     expected.trajectory_done = false;
     
-    EXPECT_TRUE(odrive_can::heartbeat_comparator(expected,odrv.last_heartbeat));
+    heartbeat_comparator(expected,odrv.last_heartbeat);
 
     //SECOND MSG
     heartbeat_msg.data[4] = 2;
     send_to_socket(talk_soc,heartbeat_msg);
     test_sleep();
     expected.axis_state = AxisState::STARTUP_SEQUENCE;
-    EXPECT_TRUE(odrive_can::heartbeat_comparator(expected,odrv.last_heartbeat));
+    heartbeat_comparator(expected,odrv.last_heartbeat);
 
     //THIRD MSG
     heartbeat_msg.data[4] = 3;
     send_to_socket(talk_soc,heartbeat_msg);
     test_sleep();
     expected.axis_state = AxisState::FULL_CALIBRATION_SEQUENCE;
-    EXPECT_TRUE(odrive_can::heartbeat_comparator(expected,odrv.last_heartbeat));
+    heartbeat_comparator(expected,odrv.last_heartbeat);
     odrv.listening = false;
     end_listening_flag = true;
     
@@ -351,13 +364,38 @@ TEST_F(commandsTest,periodic_messages_heartbeat_flags){
     send_to_socket(talk_soc,heartbeat_msg);
     test_sleep();
     odrive_can::heartbeat_t expected;
-    expected.axis_error = AxisError::NONE;
+    expected.axis_error = static_cast<uint32_t>(AxisError::NONE);
     expected.axis_state = AxisState::IDLE;
     expected.controller_error_flag = true;
     expected.encoder_error_flag = true;
     expected.motor_error_flag = true;
     expected.trajectory_done = true;
-    EXPECT_TRUE(odrive_can::heartbeat_comparator(expected,odrv.last_heartbeat));
+    heartbeat_comparator(expected,odrv.last_heartbeat);
+    odrv.listening = false;
+    end_listening_flag = true;    
+}
+
+TEST_F(commandsTest,periodic_messages_heartbeat_all_axis_errors){
+    can_frame heartbeat_msg;
+    heartbeat_msg.can_id = (4<<5)|0x001; //4 is odrv id, 1 is cmd_id
+    heartbeat_msg.len = 8;
+    memset(&heartbeat_msg.data,0,8);
+    heartbeat_msg.data[0] = 0xc1;
+    heartbeat_msg.data[1] = 0x7b;
+    heartbeat_msg.data[2] = 0xe;
+    heartbeat_msg.data[4] = 1;
+    int talk_soc = create_socket();
+    //FIRST MSG
+    send_to_socket(talk_soc,heartbeat_msg);
+    test_sleep();
+    odrive_can::heartbeat_t expected;
+    expected.axis_error = 0xe7bc1;
+    expected.axis_state = AxisState::IDLE;
+    expected.controller_error_flag = false;
+    expected.encoder_error_flag = false;
+    expected.motor_error_flag = false;
+    expected.trajectory_done = false;
+    heartbeat_comparator(expected,odrv.last_heartbeat);
     odrv.listening = false;
     end_listening_flag = true;    
 }
