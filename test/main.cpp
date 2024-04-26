@@ -16,7 +16,7 @@
 #include <atomic>
 #include <poll.h>
 #define BUFFER_SIZE 30
-#define TEST_DELAY 1
+#define TEST_DELAY 2
 
 void test_sleep(){
     std::this_thread::sleep_for(std::chrono::milliseconds(TEST_DELAY));
@@ -93,7 +93,6 @@ class commandsTest : public testing::Test{
         end_listening_flag = false;
     }
     void TearDown(){
-        
         close(can_socket);
         if (listening_thread.joinable()) {
             listening_thread.join();
@@ -115,6 +114,7 @@ class commandsTest : public testing::Test{
                     ssize_t bytes_read = read(can_socket, &msg_buffer[msg_count], sizeof(can_frame));
                     if (bytes_read < 0) {
                         // Handle error
+                        std::cout<<"read error listen_routine\n";
                     } else {
                         // Increment message count or handle received data
                         msg_count++;
@@ -122,12 +122,14 @@ class commandsTest : public testing::Test{
                 }
             } else if (ret < 0) {
                 // Handle poll error
+                std::cout<<"poll error listen_routine\n";
             }
         }
     }
     
     void send_to_socket(int soc, can_frame frame){
         write(soc, &frame, sizeof(frame));
+        test_sleep();
     }
 
     commandsTest(): odrv(interface,axis_id){}
@@ -165,6 +167,7 @@ class commandsTest : public testing::Test{
 
                     if (bytes_read < 0) {
                         // Handle error
+                        std::cout<<"read error wait_for_msg\n";
                     } else {
                         // Increment message count or handle received data
                         if (can_frame_comparator(msg_to_wait,last_msg)){
@@ -174,8 +177,10 @@ class commandsTest : public testing::Test{
                 }
             } else if (ret < 0) {
                 // Handle poll error
+                std::cout<<"poll error wait_for_msg\n";
             }
         }
+        close(soc);
     }
 };
 
@@ -313,6 +318,7 @@ TEST_F(commandsTest,get_motor_error_max_value){
 }
 
 TEST_F(commandsTest,periodic_messages_heartbeat_3_states){
+    test_sleep();
     can_frame heartbeat_msg;
     heartbeat_msg.can_id = (4<<5)|0x001; //4 is odrv id, 1 is cmd_id
     heartbeat_msg.len = 8;
@@ -351,6 +357,7 @@ TEST_F(commandsTest,periodic_messages_heartbeat_3_states){
 }
 
 TEST_F(commandsTest,periodic_messages_heartbeat_flags){
+    test_sleep();
     can_frame heartbeat_msg;
     heartbeat_msg.can_id = (4<<5)|0x001; //4 is odrv id, 1 is cmd_id
     heartbeat_msg.len = 8;
@@ -376,6 +383,7 @@ TEST_F(commandsTest,periodic_messages_heartbeat_flags){
 }
 
 TEST_F(commandsTest,periodic_messages_heartbeat_all_axis_errors){
+    test_sleep();
     can_frame heartbeat_msg;
     heartbeat_msg.can_id = (4<<5)|0x001; //4 is odrv id, 1 is cmd_id
     heartbeat_msg.len = 8;

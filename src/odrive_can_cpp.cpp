@@ -70,6 +70,7 @@ void OdriveCan::listen_routine(){
                 ssize_t bytes_read = read(thread_soc, &last_frame, sizeof(can_frame));
                 if (bytes_read < 0) {
                     // Handle error
+                    std::cout<<"read error odrv_listen\n";
                 } else {
                     uint16_t cmd = last_frame.can_id&ODRV_CMD_MASK;
                     cmd += 0;
@@ -87,9 +88,12 @@ void OdriveCan::listen_routine(){
                 }
             }
         } else if (ret < 0) {
+
+            std::cout<<"poll error odrv_listen\n";
             // Handle poll error
         }
     }
+    close(thread_soc);
     return;
 }
 
@@ -119,7 +123,15 @@ int OdriveCan::send_message(cmd_id command, bool is_rtr){
 }
 
 int OdriveCan::receive_message(can_frame& frame) {
-    return read(talk_socket, &frame, sizeof(frame));
+    int result = read(talk_socket, &frame, sizeof(frame));
+
+    if (result == 0){
+        std::cout<<"read EOF error odrv_receive\n";
+    }
+    else if (result == -1){
+        std::cout<<"read error error odrv_receive\n";
+    }
+    return result;
 }
 
 int OdriveCan::odrv_can_id(cmd_id cmd){
