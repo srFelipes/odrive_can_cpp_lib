@@ -49,7 +49,10 @@ OdriveCan::OdriveCan(const std::string& interface, uint32_t axis_id_param)
 
     setsockopt(listen_socket, SOL_CAN_RAW, CAN_RAW_FILTER, &filter, sizeof(filter));
     axis_id = axis_id_param;
+    thread_started =false;
     listening_thread = std::thread(&OdriveCan::listen_routine,this);
+    while (!thread_started){}
+    
 }
 void OdriveCan::listen_routine(){
     int thread_soc = create_socket(this_interface);
@@ -61,7 +64,7 @@ void OdriveCan::listen_routine(){
     filter[0].can_id = axis_id<<5;
     filter[0].can_mask = ODRV_CAN_MASK;
     setsockopt(thread_soc, SOL_CAN_RAW, CAN_RAW_FILTER, &filter, sizeof(filter));
-
+    thread_started = true;
     while (listening){
         int ret = poll(pollfds, 1, 1); // Monitor indefinitely for events on the file descriptor
         if (ret > 0) {

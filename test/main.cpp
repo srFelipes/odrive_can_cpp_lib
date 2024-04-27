@@ -93,6 +93,8 @@ class commandsTest : public testing::Test{
         end_listening_flag = false;
     }
     void TearDown(){
+        odrv.listening = false;
+        end_listening_flag = true;
         close(can_socket);
         if (listening_thread.joinable()) {
             listening_thread.join();
@@ -217,19 +219,15 @@ TEST_F(commandsTest,get_motor_error_no_error){
                 expected_petition,given_answer);
     test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output = odrv.get_motor_error();
-    odrv.listening = false;
     end_listening_flag = true;
-    
-    
     if (wfmaa_thread.joinable()){
         wfmaa_thread.join();
     }
     EXPECT_TRUE(can_frame_comparator(expected_petition, msg_buffer[0]));
     EXPECT_TRUE(can_frame_comparator(given_answer, msg_buffer[1]));
     EXPECT_TRUE(MotorError::NONE == output);
-
-
 }
+
 TEST_F(commandsTest,get_motor_error_phase_r_out_of_r){
     
     can_frame expected_petition;
@@ -256,12 +254,9 @@ TEST_F(commandsTest,get_motor_error_phase_r_out_of_r){
     EXPECT_TRUE(can_frame_comparator(expected_petition, msg_buffer[0]));
     EXPECT_TRUE(can_frame_comparator(given_answer, msg_buffer[1]));
     EXPECT_TRUE(MotorError::PHASE_RESISTANCE_OUT_OF_RANGE == output);
-
-
 }
 
 TEST_F(commandsTest,get_motor_error_answer_unknown){
-    
     can_frame expected_petition;
     expected_petition.can_id = (4<<5)|0x003; //4 is odrv id, 3 is cmd_id
     expected_petition.can_id |= CAN_RTR_FLAG;
@@ -289,7 +284,6 @@ TEST_F(commandsTest,get_motor_error_answer_unknown){
 }
 
 TEST_F(commandsTest,get_motor_error_max_value){
-    
     can_frame expected_petition;
     expected_petition.can_id = (4<<5)|0x003; //4 is odrv id, 3 is cmd_id
     expected_petition.can_id |= CAN_RTR_FLAG;
@@ -318,7 +312,6 @@ TEST_F(commandsTest,get_motor_error_max_value){
 }
 
 TEST_F(commandsTest,periodic_messages_heartbeat_3_states){
-    test_sleep();
     can_frame heartbeat_msg;
     heartbeat_msg.can_id = (4<<5)|0x001; //4 is odrv id, 1 is cmd_id
     heartbeat_msg.len = 8;
@@ -350,14 +343,10 @@ TEST_F(commandsTest,periodic_messages_heartbeat_3_states){
     send_to_socket(talk_soc,heartbeat_msg);
     test_sleep();
     expected.axis_state = AxisState::FULL_CALIBRATION_SEQUENCE;
-    heartbeat_comparator(expected,odrv.last_heartbeat);
-    odrv.listening = false;
-    end_listening_flag = true;
-    
+    heartbeat_comparator(expected,odrv.last_heartbeat);    
 }
 
 TEST_F(commandsTest,periodic_messages_heartbeat_flags){
-    test_sleep();
     can_frame heartbeat_msg;
     heartbeat_msg.can_id = (4<<5)|0x001; //4 is odrv id, 1 is cmd_id
     heartbeat_msg.len = 8;
@@ -378,12 +367,9 @@ TEST_F(commandsTest,periodic_messages_heartbeat_flags){
     expected.motor_error_flag = true;
     expected.trajectory_done = true;
     heartbeat_comparator(expected,odrv.last_heartbeat);
-    odrv.listening = false;
-    end_listening_flag = true;    
 }
 
 TEST_F(commandsTest,periodic_messages_heartbeat_all_axis_errors){
-    test_sleep();
     can_frame heartbeat_msg;
     heartbeat_msg.can_id = (4<<5)|0x001; //4 is odrv id, 1 is cmd_id
     heartbeat_msg.len = 8;
@@ -404,12 +390,9 @@ TEST_F(commandsTest,periodic_messages_heartbeat_all_axis_errors){
     expected.motor_error_flag = false;
     expected.trajectory_done = false;
     heartbeat_comparator(expected,odrv.last_heartbeat);
-    odrv.listening = false;
-    end_listening_flag = true;    
 }
 
 TEST_F(commandsTest,periodic_heartbeat_strange_msg_is_ignored){
-    test_sleep();
     can_frame heartbeat_msg;
     heartbeat_msg.can_id = (4<<5)|0x001; //4 is odrv id, 1 is cmd_id
     heartbeat_msg.len = 7;
@@ -427,8 +410,6 @@ TEST_F(commandsTest,periodic_heartbeat_strange_msg_is_ignored){
     test_sleep();
     heartbeat_comparator(dummy_heartbeat,odrv.last_heartbeat);
     EXPECT_TRUE(can_frame_comparator(heartbeat_msg,odrv.last_frame));
-    odrv.listening = false;
-    end_listening_flag = true;
 }
 
 

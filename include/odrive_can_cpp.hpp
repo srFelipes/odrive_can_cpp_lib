@@ -57,6 +57,7 @@ namespace odrive_can{
         /* data */
         int talk_socket;
         int listen_socket;
+        bool thread_started;
         
         int send_message(const can_frame& frame);
         int send_message(cmd_id command, bool is_rtr);
