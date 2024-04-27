@@ -74,7 +74,8 @@ void OdriveCan::listen_routine(){
                 } else {
                     uint16_t cmd = last_frame.can_id&ODRV_CMD_MASK;
                     cmd += 0;
-                    if (static_cast<uint16_t>(cmd_id::HEARTBEAT) == cmd){
+                    if ((static_cast<uint16_t>(cmd_id::HEARTBEAT) == cmd)
+                       & (last_frame.len == HEARTBEAT_LEN)){
                         last_heartbeat.axis_error =  last_frame.data[0]
                                                     +(last_frame.data[1]<<8)
                                                     +(last_frame.data[2]<<16)

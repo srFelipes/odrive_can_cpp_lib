@@ -8,7 +8,7 @@
 #include <linux/can.h>
 #include "odrive_enums.hpp"
 
-
+#define HEARTBEAT_LEN 8
 
 
 namespace odrive_can{

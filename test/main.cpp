@@ -408,6 +408,29 @@ TEST_F(commandsTest,periodic_messages_heartbeat_all_axis_errors){
     end_listening_flag = true;    
 }
 
+TEST_F(commandsTest,periodic_heartbeat_strange_msg_is_ignored){
+    test_sleep();
+    can_frame heartbeat_msg;
+    heartbeat_msg.can_id = (4<<5)|0x001; //4 is odrv id, 1 is cmd_id
+    heartbeat_msg.len = 7;
+    memset(&heartbeat_msg.data,0,8);
+    int talk_soc = create_socket();
+    odrive_can::heartbeat_t dummy_heartbeat;
+    dummy_heartbeat.axis_error = 555;
+    dummy_heartbeat.axis_state = AxisState::ENCODER_HALL_POLARITY_CALIBRATION;
+    dummy_heartbeat.controller_error_flag = false;
+    dummy_heartbeat.encoder_error_flag = true;
+    dummy_heartbeat.motor_error_flag = false;
+    dummy_heartbeat.trajectory_done = true;
+    odrv.last_heartbeat = dummy_heartbeat;
+    send_to_socket(talk_soc,heartbeat_msg);
+    test_sleep();
+    heartbeat_comparator(dummy_heartbeat,odrv.last_heartbeat);
+    EXPECT_TRUE(can_frame_comparator(heartbeat_msg,odrv.last_frame));
+    odrv.listening = false;
+    end_listening_flag = true;
+}
+
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv); 
