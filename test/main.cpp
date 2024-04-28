@@ -412,6 +412,34 @@ TEST_F(commandsTest,periodic_heartbeat_strange_msg_is_ignored){
     EXPECT_TRUE(can_frame_comparator(heartbeat_msg,odrv.last_frame));
 }
 
+TEST_F(commandsTest,periodic_pos_estimate_happy_case){
+    can_frame heartbeat_msg;
+    heartbeat_msg.can_id = (4<<5)|0x009; //4 is odrv id, 9 is cmd_id
+    heartbeat_msg.len = 8;
+    memset(&heartbeat_msg.data,0,8);
+    int talk_soc = create_socket();
+    send_to_socket(talk_soc,heartbeat_msg);
+    test_sleep();
+    EXPECT_TRUE(0.0 == odrv.last_encoder_est.pos_estimate);
+    EXPECT_TRUE(0.0 == odrv.last_encoder_est.vel_estimate);
+}
+
+TEST_F(commandsTest,periodic_pos_estimate_happy_case_other_value){
+    can_frame heartbeat_msg;
+    heartbeat_msg.can_id = (4<<5)|0x009; //4 is odrv id, 9 is cmd_id
+    heartbeat_msg.len = 8;
+    memset(&heartbeat_msg.data,0,8);
+    heartbeat_msg.data[2] = 0x80;
+    heartbeat_msg.data[3] = 0x3f; // pos_estimate is 1.0
+    heartbeat_msg.data[7] = 0x40; // vel_estimate is 2.0
+    int talk_soc = create_socket();
+    send_to_socket(talk_soc,heartbeat_msg);
+    test_sleep();
+    EXPECT_TRUE(1.0 == odrv.last_encoder_est.pos_estimate);
+    EXPECT_TRUE(2.0 == odrv.last_encoder_est.vel_estimate);
+}
+
+
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv); 

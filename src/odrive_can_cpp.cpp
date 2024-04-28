@@ -89,6 +89,11 @@ void OdriveCan::listen_routine(){
                         last_heartbeat.encoder_error_flag = last_frame.data[6];
                         last_heartbeat.trajectory_done = last_frame.data[7]>>7;
                     }
+                    else if (static_cast<uint16_t>(cmd_id::GET_ENCODER_ESTIMATES
+                            ) == cmd){
+                                memcpy(&last_encoder_est.pos_estimate,last_frame.data,4);
+                                memcpy(&last_encoder_est.vel_estimate,&last_frame.data[4],4);
+                            }
                 }
             }
         } else if (ret < 0) {

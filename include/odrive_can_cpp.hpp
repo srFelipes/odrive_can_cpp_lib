@@ -71,6 +71,7 @@ namespace odrive_can{
         
 
     public:
+        encoder_estimate_t last_encoder_est;
         const std::string this_interface;
         /**
          * @brief boolean variable used to signal when to kill the listening_thread
