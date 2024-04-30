@@ -38,12 +38,13 @@ class commandsTest : public testing::Test{
     
     void SetUp(){
         can_socket = create_socket();
+        fixture_listening = true;
         listening_thread = std::thread(&commandsTest::listen_routine, this);
-        end_listening_flag = false;
+        test_sleep();
     }
     void TearDown(){
         odrv.listening = false;
-        end_listening_flag = true;
+        fixture_listening = false;
         close(can_socket);
         if (listening_thread.joinable()) {
             listening_thread.join();
@@ -56,8 +57,7 @@ class commandsTest : public testing::Test{
         pollfds[0].fd = can_socket; // Set the file descriptor to monitor
         pollfds[0].events = POLLIN; // Set the events to monitor for (in this case, readability)
 
-        while (last_read){
-            last_read = !end_listening_flag;
+        while (fixture_listening){
             int ret = poll(pollfds, 1, TEST_DELAY); // Monitor indefinitely for events on the file descriptor
             if (ret > 0) {
                 if (pollfds[0].revents & POLLIN) { // Check if the file descriptor is ready for reading
@@ -83,7 +83,7 @@ class commandsTest : public testing::Test{
     
     can_frame msg_buffer[BUFFER_SIZE];
     int msg_count = 0;
-    bool end_listening_flag = false;
+    bool fixture_listening = true;
     std::thread listening_thread;
     odrive_can::OdriveCan odrv;
     public:
@@ -92,7 +92,7 @@ class commandsTest : public testing::Test{
 TEST_F(commandsTest, e_stop){
     int result = odrv.e_stop();
     EXPECT_TRUE(0 == result);
-    end_listening_flag = true;
+    fixture_listening = false;
     odrv.listening = false;
     listening_thread.join();
     EXPECT_TRUE(1 == msg_count);
@@ -119,10 +119,9 @@ TEST_F(commandsTest,get_motor_error_no_error){
     memset(&given_answer.data,0,8);
 
     std::thread wfmaa_thread(wait_for_msg_and_answer,
-                expected_petition,&given_answer,1);
+                expected_petition,&given_answer,1,false,&fixture_listening);
     test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output = odrv.get_motor_error();
-    end_listening_flag = true;
     if (wfmaa_thread.joinable()){
         wfmaa_thread.join();
     }
@@ -145,11 +144,9 @@ TEST_F(commandsTest,get_motor_error_phase_r_out_of_r){
     given_answer.data[0] = 1;    //MotorError.NONE;
 
     std::thread wfmaa_thread(wait_for_msg_and_answer,
-                expected_petition,&given_answer,1);
+                expected_petition,&given_answer,1,false,&fixture_listening);
     test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output = odrv.get_motor_error();
-    end_listening_flag = true;
-    odrv.listening = false;
     
     if (wfmaa_thread.joinable()){
         wfmaa_thread.join();
@@ -172,12 +169,10 @@ TEST_F(commandsTest,get_motor_error_answer_unknown){
     given_answer.data[0] = 3;    //MotorError. non existent;
 
     std::thread wfmaa_thread(wait_for_msg_and_answer,
-                expected_petition,&given_answer,1);
+                expected_petition,&given_answer,1,false,&fixture_listening);
     test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output;
     EXPECT_THROW(output = odrv.get_motor_error(),UnexpectedMessageException);
-    end_listening_flag = true;
-    odrv.listening = false;
     
     if (wfmaa_thread.joinable()){ 
         wfmaa_thread.join();
@@ -199,12 +194,10 @@ TEST_F(commandsTest,get_motor_error_max_value){
     given_answer.data[4] = 8;    //MotorError.UNBALANCED_PHASES;
 
     std::thread wfmaa_thread(wait_for_msg_and_answer,
-                expected_petition,&given_answer,1);
+                expected_petition,&given_answer,1,false,&fixture_listening);
     test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output;
     output = odrv.get_motor_error();
-    end_listening_flag = true;
-    odrv.listening = false;
     
     if (wfmaa_thread.joinable()){
         wfmaa_thread.join();
@@ -359,7 +352,7 @@ TEST_F(commandsTest,periodic_pos_estimate_happy_case_50_values){
         EXPECT_TRUE(pos == odrv.last_encoder_est.pos_estimate);
         EXPECT_TRUE(vel == odrv.last_encoder_est.vel_estimate);
     }
-    end_listening_flag = true;
+    fixture_listening = false;
     odrv.listening = false;
 }
 
@@ -391,10 +384,9 @@ TEST_F(commandsTest, get_motor_error_waits_for_motor_error_msg){
     given_answer[1] = heartbeat_msg;
 
     std::thread wfmaa_thread(wait_for_msg_and_answer,
-                expected_petition,given_answer, 3);
+                expected_petition,given_answer, 3, false, &fixture_listening);
     test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output = odrv.get_motor_error();
-    end_listening_flag = true;
     if (wfmaa_thread.joinable()){
         wfmaa_thread.join();
     }
@@ -406,6 +398,6 @@ TEST_F(commandsTest, get_motor_error_waits_for_motor_error_msg){
 
 
 int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv); 
+    ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

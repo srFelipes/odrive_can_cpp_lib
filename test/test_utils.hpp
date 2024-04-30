@@ -15,7 +15,7 @@
 #include <atomic>
 #include <poll.h>
 
-#define TEST_DELAY 2
+#define TEST_DELAY 1
 
 void test_sleep(){
     std::this_thread::sleep_for(std::chrono::milliseconds(TEST_DELAY));
@@ -26,10 +26,13 @@ void send_to_socket(int soc, can_frame frame){
         test_sleep();
     }
 bool can_frame_comparator(can_frame expected, can_frame actual){
-    EXPECT_TRUE(expected.can_id == actual.can_id);
-    EXPECT_TRUE(expected.len == actual.len);
+    EXPECT_TRUE(expected.can_id == actual.can_id)<< "expected = " 
+                << expected.can_id << "|actual = " << actual.can_id;
+    EXPECT_TRUE(expected.len == actual.len)<< "expected = " 
+                << static_cast<int>(expected.len) << "|actual = " << static_cast<int>(actual.len);
     for (int i = 0; i< expected.len;i++){
-        EXPECT_TRUE(expected.data[i] == actual.data[i]);
+        EXPECT_TRUE(expected.data[i] == actual.data[i]) << "i = " << i << " | expected = " 
+                << static_cast<int>(expected.data[i])  << " | actual = " << static_cast<int>(actual.data[i]) ;
     }
     return true;
 }
@@ -79,48 +82,57 @@ int create_socket(){
     return output_socket;
 }
 
-void wait_for_msg_and_answer(can_frame msg_to_wait, can_frame* answer, int answer_length){
-        int soc = create_socket();
-        can_frame last_msg;
-        int read_size;
-        bool break_the_loop = true;
-        
-        bool last_read = true;
-        struct pollfd pollfds[1];
-        pollfds[0].fd = soc; // Set the file descriptor to monitor
-        pollfds[0].events = POLLIN; // Set the events to monitor for (in this case, readability)
+void wait_for_msg_and_answer(can_frame msg_to_wait, can_frame* answer, int answer_length, bool answer_per_petition, bool* flag){
+    int soc = create_socket();
+    can_frame last_msg;
+    int read_size;
+    bool break_the_loop = true;
+    
+    bool last_read = true;
+    struct pollfd pollfds[1];
+    pollfds[0].fd = soc; // Set the file descriptor to monitor
+    pollfds[0].events = POLLIN; // Set the events to monitor for (in this case, readability)
+    int k = 0;
+    while (flag){
+        int ret = poll(pollfds, 1, TEST_DELAY); // Monitor indefinitely for events on the file descriptor
+        if (ret > 0) {
+            if (pollfds[0].revents & POLLIN) { // Check if the file descriptor is ready for reading
+                // Read data from the socket
+                ssize_t bytes_read = read(soc, &last_msg, sizeof(can_frame));
 
-        while (true){
-            int ret = poll(pollfds, 1, TEST_DELAY); // Monitor indefinitely for events on the file descriptor
-            if (ret > 0) {
-                if (pollfds[0].revents & POLLIN) { // Check if the file descriptor is ready for reading
-                    // Read data from the socket
-                    ssize_t bytes_read = read(soc, &last_msg, sizeof(can_frame));
-
-                    if (bytes_read < 0) {
-                        // Handle error
-                        std::cout<<"read error wait_for_msg\n";
-                    } else {
-                        // Increment message count or handle received data
-                        if ((msg_to_wait.can_id == last_msg.can_id)
-                            &msg_to_wait.len == last_msg.len){
-                                bool should_send = true;
-                            for (int i = 0; i< msg_to_wait.len;i++){
-                                should_send &= (msg_to_wait.data[i] == last_msg.data[i]);
-                            }
-                            if (should_send){
-                                for (int k = 0; k< answer_length; k++){
-                                    send_to_socket(soc,answer[k]);
+                if (bytes_read < 0) {
+                    // Handle error
+                    std::cout<<"read error wait_for_msg\n";
+                } else {
+                    if ((msg_to_wait.can_id == last_msg.can_id)
+                        &msg_to_wait.len == last_msg.len){
+                            bool should_send = true;
+                        for (int i = 0; i< msg_to_wait.len;i++){
+                            should_send &= (msg_to_wait.data[i] == last_msg.data[i]);
+                        }
+                        if (should_send){
+                            if (answer_per_petition){
+                                send_to_socket(soc,answer[k]);
+                                k++;
+                                if (k==answer_length){
+                                    break;
                                 }
-                                break;
+                            }
+                            else{
+                            while (k < answer_length){
+                                send_to_socket(soc,answer[k]);
+                                k++;
+                            }
+                            break;
                             }
                         }
                     }
                 }
-            } else if (ret < 0) {
-                // Handle poll error
-                std::cout<<"poll error wait_for_msg\n";
             }
+        } else if (ret < 0) {
+            // Handle poll error
+            std::cout<<"poll error wait_for_msg\n";
         }
-        close(soc);
     }
+    close(soc);
+}
