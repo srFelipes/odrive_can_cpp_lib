@@ -15,12 +15,9 @@
 #include <chrono>
 #include <atomic>
 #include <poll.h>
-#define BUFFER_SIZE 300
-#define TEST_DELAY 2
 
-void test_sleep(){
-    std::this_thread::sleep_for(std::chrono::milliseconds(TEST_DELAY));
-}
+#include "test_utils.hpp"
+#define BUFFER_SIZE 300
 
 TEST(importingTests,importLib){
     #ifdef ODRIVE_CAN
@@ -36,57 +33,9 @@ TEST(importingTest,canUp){
     
 }
 
-bool can_frame_comparator(can_frame expected, can_frame actual){
-    EXPECT_TRUE(expected.can_id == actual.can_id);
-    EXPECT_TRUE(expected.len == actual.len);
-    for (int i = 0; i< expected.len;i++){
-        EXPECT_TRUE(expected.data[i] == actual.data[i]);
-    }
-    return true;
-}
-void heartbeat_comparator(odrive_can::heartbeat_t expected, odrive_can::heartbeat_t actual){
-    EXPECT_TRUE(expected.axis_error == actual.axis_error) << "expected = " 
-                << expected.axis_error << "|actual = " << actual.axis_error;
-
-    EXPECT_TRUE (expected.axis_state == actual.axis_state)<< "expected = " 
-                << static_cast<int>(expected.axis_state) << "|actual = " << static_cast<int>(actual.axis_state);
-
-    EXPECT_TRUE (expected.controller_error_flag == actual.controller_error_flag)<< "expected = " 
-                << expected.controller_error_flag << "|actual = " << actual.controller_error_flag;
-
-    EXPECT_TRUE (expected.encoder_error_flag == actual.encoder_error_flag)<< "expected = " 
-                << expected.encoder_error_flag << "|actual = " << actual.encoder_error_flag;
-
-    EXPECT_TRUE (expected.motor_error_flag == actual.motor_error_flag)<< "expected = " 
-                << expected.motor_error_flag << "|actual = " << actual.motor_error_flag;
-
-    EXPECT_TRUE (expected.trajectory_done == actual.trajectory_done)<< "expected = " 
-                << expected.trajectory_done << "|actual = " << actual.trajectory_done;
-}
-
 class commandsTest : public testing::Test{
     protected:
-    int create_socket(){
-        int output_socket;
-        output_socket = socket(PF_CAN, SOCK_RAW, CAN_RAW);
-        if (output_socket == -1) {
-            throw std::runtime_error("Failed to create socket");
-        }
-        // Set the interface name
-        
-        std::strncpy(ifr.ifr_name, interface.c_str(), IFNAMSIZ);
-        ioctl(output_socket, SIOCGIFINDEX, &ifr);
-
-        // Bind the socket to the CAN interface
-        
-        addr.can_family = AF_CAN;
-        addr.can_ifindex = ifr.ifr_ifindex;
-        if (bind(output_socket, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) == -1) {
-            close(output_socket);
-            throw std::runtime_error("Failed to bind socket to interface");
-        }
-        return output_socket;
-    }
+    
     void SetUp(){
         can_socket = create_socket();
         listening_thread = std::thread(&commandsTest::listen_routine, this);
@@ -128,18 +77,8 @@ class commandsTest : public testing::Test{
             }
         }
     }
-    
-    void send_to_socket(int soc, can_frame frame){
-        write(soc, &frame, sizeof(frame));
-        test_sleep();
-    }
-
-    commandsTest(): odrv(interface,axis_id){}
-
-    struct sockaddr_can addr;
-    int can_socket;
-    struct ifreq ifr;
-    std::string interface = "vcan0" ;
+    commandsTest(): odrv("vcan0",axis_id){}
+    int can_socket;    
     uint32_t axis_id = 4; //no particular reason for this number
     
     can_frame msg_buffer[BUFFER_SIZE];
@@ -148,51 +87,6 @@ class commandsTest : public testing::Test{
     std::thread listening_thread;
     odrive_can::OdriveCan odrv;
     public:
-    void wait_for_msg_and_answer(can_frame msg_to_wait, can_frame* answer, int answer_length){
-        int soc = create_socket();
-        can_frame last_msg;
-        int read_size;
-        bool break_the_loop = true;
-        
-        bool last_read = true;
-        struct pollfd pollfds[1];
-        pollfds[0].fd = soc; // Set the file descriptor to monitor
-        pollfds[0].events = POLLIN; // Set the events to monitor for (in this case, readability)
-
-        while (last_read){
-            last_read = !end_listening_flag;
-            int ret = poll(pollfds, 1, TEST_DELAY); // Monitor indefinitely for events on the file descriptor
-            if (ret > 0) {
-                if (pollfds[0].revents & POLLIN) { // Check if the file descriptor is ready for reading
-                    // Read data from the socket
-                    ssize_t bytes_read = read(soc, &last_msg, sizeof(can_frame));
-
-                    if (bytes_read < 0) {
-                        // Handle error
-                        std::cout<<"read error wait_for_msg\n";
-                    } else {
-                        // Increment message count or handle received data
-                        if ((msg_to_wait.can_id == last_msg.can_id)
-                            &msg_to_wait.len == last_msg.len){
-                                bool should_send = true;
-                            for (int i = 0; i< msg_to_wait.len;i++){
-                                should_send &= (msg_to_wait.data[i] == last_msg.data[i]);
-                            }
-                            if (should_send){
-                                for (int k = 0; k< answer_length; k++){
-                                    send_to_socket(soc,answer[k]);
-                                }                                
-                            }
-                        }
-                    }
-                }
-            } else if (ret < 0) {
-                // Handle poll error
-                std::cout<<"poll error wait_for_msg\n";
-            }
-        }
-        close(soc);
-    }
 };
 
 TEST_F(commandsTest, e_stop){
@@ -224,7 +118,7 @@ TEST_F(commandsTest,get_motor_error_no_error){
     given_answer.data[0] = 0;    //MotorError.NONE;
     memset(&given_answer.data,0,8);
 
-    std::thread wfmaa_thread(&commandsTest::wait_for_msg_and_answer,this,
+    std::thread wfmaa_thread(wait_for_msg_and_answer,
                 expected_petition,&given_answer,1);
     test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output = odrv.get_motor_error();
@@ -250,7 +144,7 @@ TEST_F(commandsTest,get_motor_error_phase_r_out_of_r){
     memset(&given_answer.data,0,8);
     given_answer.data[0] = 1;    //MotorError.NONE;
 
-    std::thread wfmaa_thread(&commandsTest::wait_for_msg_and_answer,this,
+    std::thread wfmaa_thread(wait_for_msg_and_answer,
                 expected_petition,&given_answer,1);
     test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output = odrv.get_motor_error();
@@ -277,7 +171,7 @@ TEST_F(commandsTest,get_motor_error_answer_unknown){
     memset(&given_answer.data,0,8);
     given_answer.data[0] = 3;    //MotorError. non existent;
 
-    std::thread wfmaa_thread(&commandsTest::wait_for_msg_and_answer,this,
+    std::thread wfmaa_thread(wait_for_msg_and_answer,
                 expected_petition,&given_answer,1);
     test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output;
@@ -304,7 +198,7 @@ TEST_F(commandsTest,get_motor_error_max_value){
     memset(&given_answer.data,0,8);
     given_answer.data[4] = 8;    //MotorError.UNBALANCED_PHASES;
 
-    std::thread wfmaa_thread(&commandsTest::wait_for_msg_and_answer,this,
+    std::thread wfmaa_thread(wait_for_msg_and_answer,
                 expected_petition,&given_answer,1);
     test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output;
@@ -496,7 +390,7 @@ TEST_F(commandsTest, get_motor_error_waits_for_motor_error_msg){
     given_answer[0] = pos_estimate_msg;
     given_answer[1] = heartbeat_msg;
 
-    std::thread wfmaa_thread(&commandsTest::wait_for_msg_and_answer,this,
+    std::thread wfmaa_thread(wait_for_msg_and_answer,
                 expected_petition,given_answer, 3);
     test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output = odrv.get_motor_error();
