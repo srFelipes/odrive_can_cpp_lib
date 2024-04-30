@@ -90,10 +90,16 @@ void OdriveCan::listen_routine(){
                         last_heartbeat.trajectory_done = last_frame.data[7]>>7;
                     }
                     else if (static_cast<uint16_t>(cmd_id::GET_ENCODER_ESTIMATES
-                            ) == cmd){
-                                memcpy(&last_encoder_est.pos_estimate,last_frame.data,4);
-                                memcpy(&last_encoder_est.vel_estimate,&last_frame.data[4],4);
-                            }
+                        ) == cmd){
+                            memcpy(&last_encoder_est.pos_estimate,last_frame.data,4);
+                            memcpy(&last_encoder_est.vel_estimate,&last_frame.data[4],4);
+                        }
+                    else if (waiting_for_frame){
+                        if ((last_frame.can_id == expected_frame.can_id)
+                            & (last_frame.len == expected_frame.len)){
+                                waiting_for_frame = false;
+                        }
+                    }
                 }
             }
         } else if (ret < 0) {
@@ -124,11 +130,23 @@ int OdriveCan::send_message(cmd_id command, unsigned char msg[], int msg_size){
 int OdriveCan::send_message(cmd_id command, bool is_rtr){
     can_frame frame;
     frame.can_id = odrv_can_id(command);
+    frame.can_dlc = 0;
     if (is_rtr){
         frame.can_id |= CAN_RTR_FLAG;
     }
-    frame.can_dlc = 0;
     return send_message(frame);
+}
+
+int OdriveCan::send_message(cmd_id command, can_frame frame_format){
+    can_frame frame;
+    frame.can_id = odrv_can_id(command);
+    frame.can_dlc = 0;
+    frame.can_id |= CAN_RTR_FLAG;
+    expected_frame = frame_format;
+    waiting_for_frame = true;
+    int result = send_message(frame);
+    while (waiting_for_frame){}
+    return result;
 }
 
 int OdriveCan::receive_message(can_frame& frame) {
@@ -153,9 +171,12 @@ int OdriveCan::e_stop(){
 }
 
 MotorError OdriveCan::get_motor_error(){
-    send_message(cmd_id::MOTOR_ERROR,true);
-    can_frame ans;
-    receive_message(ans);
+    can_frame format;
+    format.len = 8;
+    format.can_id = odrv_can_id(cmd_id::MOTOR_ERROR);
+    send_message(cmd_id::MOTOR_ERROR,format);
+    
+    can_frame ans = last_frame;
     uint64_t output_candidate;
     memcpy(&output_candidate,ans.data,ans.len);
     for (int i = 0; i<MOTOR_ERROR_LEN;i++){
@@ -163,7 +184,7 @@ MotorError OdriveCan::get_motor_error(){
              return static_cast<MotorError>(output_candidate);
         }
     }
-    char error_msg[50]; // Assuming 20 characters are sufficient for the hexadecimal representation
+    char error_msg[50];
     sprintf(error_msg, "Received unexpected data frame  0x%lx", output_candidate); // Format output_candidate in hexadecimal
     throw UnexpectedMessageException(error_msg);
 }
