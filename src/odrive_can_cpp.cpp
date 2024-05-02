@@ -174,17 +174,18 @@ MotorError OdriveCan::get_motor_error(){
     can_frame format;
     format.len = 8;
     format.can_id = odrv_can_id(cmd_id::MOTOR_ERROR);
-    send_message(cmd_id::MOTOR_ERROR,format);
-    
-    can_frame ans = last_frame;
-    uint64_t output_candidate;
-    memcpy(&output_candidate,ans.data,ans.len);
-    for (int i = 0; i<MOTOR_ERROR_LEN;i++){
-        if (output_candidate == all_the_motor_errors[i]){
-             return static_cast<MotorError>(output_candidate);
+    for (int i=0; i<N_OF_RETRIES; i++){
+        send_message(cmd_id::MOTOR_ERROR,format);
+        can_frame ans = last_frame;
+        uint64_t output_candidate;
+        memcpy(&output_candidate,ans.data,ans.len);
+        for (int i = 0; i<MOTOR_ERROR_LEN;i++){
+            if (output_candidate == all_the_motor_errors[i]){
+                return static_cast<MotorError>(output_candidate);
+            }
         }
     }
-    return get_motor_error();
+    throw MaximumNumberOfRetriesReached("get_motor_error reached the maximum number of retries");
 }
 
 

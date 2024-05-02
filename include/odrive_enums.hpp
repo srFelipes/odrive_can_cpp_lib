@@ -391,3 +391,18 @@ public:
 private:
     std::string m_message;
 };
+
+// Custom exception class for maximum number of retries
+class MaximumNumberOfRetriesReached : public std::exception {
+public:
+    MaximumNumberOfRetriesReached(const std::string& message)
+        : m_message(message) {}
+
+    // Override what() method to provide error message
+    const char* what() const noexcept override {
+        return m_message.c_str();
+    }
+
+private:
+    std::string m_message;
+};

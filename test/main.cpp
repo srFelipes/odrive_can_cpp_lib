@@ -190,6 +190,38 @@ TEST_F(commandsTest,get_motor_error_answer_unknown_no_throw){
     can_frame_comparator(good_answer, msg_buffer[3]);
 }
 
+TEST_F(commandsTest,get_motor_error_maximum_number_of_retries){
+    can_frame expected_petition;
+    expected_petition.can_id = (4<<5)|0x003; //4 is odrv id, 3 is cmd_id
+    expected_petition.can_id |= CAN_RTR_FLAG;
+    expected_petition.len = 0;
+
+    can_frame unknown_answer;
+    unknown_answer.can_id = (4<<5)|0x003; //4 is odrv id, 3 is cmd_id
+    unknown_answer.len = 8;
+    memset(&unknown_answer.data,0,8);
+    unknown_answer.data[0] = 3;    //MotorError. non existent;
+
+    can_frame answers[N_OF_RETRIES+1];
+
+    for (int i=0; i<N_OF_RETRIES; i++){
+        answers[i] = unknown_answer;
+    }
+    std::thread wfmaa_thread(wait_for_msg_and_answer,
+                expected_petition,answers,N_OF_RETRIES,true,&fixture_listening);
+    test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
+    MotorError result;
+    EXPECT_THROW(result = odrv.get_motor_error(),MaximumNumberOfRetriesReached);
+    if (wfmaa_thread.joinable()){
+        wfmaa_thread.join();
+    }
+    for (int i=0; i<N_OF_RETRIES; i++){
+        can_frame_comparator(expected_petition, msg_buffer[2*i]);
+        can_frame_comparator(unknown_answer, msg_buffer[2*i+1]);
+    }
+    
+}
+
 TEST_F(commandsTest,get_motor_error_max_value){
     can_frame expected_petition;
     expected_petition.can_id = (4<<5)|0x003; //4 is odrv id, 3 is cmd_id

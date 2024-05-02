@@ -9,6 +9,7 @@
 #include "odrive_enums.hpp"
 
 #define HEARTBEAT_LEN 8
+#define N_OF_RETRIES 10
 
 
 namespace odrive_can{
