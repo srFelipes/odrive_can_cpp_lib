@@ -156,29 +156,38 @@ TEST_F(commandsTest,get_motor_error_phase_r_out_of_r){
     EXPECT_TRUE(MotorError::PHASE_RESISTANCE_OUT_OF_RANGE == output);
 }
 
-TEST_F(commandsTest,get_motor_error_answer_unknown){
+TEST_F(commandsTest,get_motor_error_answer_unknown_no_throw){
     can_frame expected_petition;
     expected_petition.can_id = (4<<5)|0x003; //4 is odrv id, 3 is cmd_id
     expected_petition.can_id |= CAN_RTR_FLAG;
     expected_petition.len = 0;
 
-    can_frame given_answer;
-    given_answer.can_id = (4<<5)|0x003; //4 is odrv id, 3 is cmd_id
-    given_answer.len = 8;
-    memset(&given_answer.data,0,8);
-    given_answer.data[0] = 3;    //MotorError. non existent;
+    can_frame unknown_answer;
+    unknown_answer.can_id = (4<<5)|0x003; //4 is odrv id, 3 is cmd_id
+    unknown_answer.len = 8;
+    memset(&unknown_answer.data,0,8);
+    unknown_answer.data[0] = 3;    //MotorError. non existent;
+
+    can_frame good_answer; // data is 0, so error is NONE
+    good_answer.can_id = (4<<5)|0x003; //4 is odrv id, 3 is cmd_id
+    good_answer.len = 8;
+    memset(&good_answer.data,0,8);
+
+    can_frame answers[] = {unknown_answer,good_answer};
 
     std::thread wfmaa_thread(wait_for_msg_and_answer,
-                expected_petition,&given_answer,1,false,&fixture_listening);
+                expected_petition,answers,2,true,&fixture_listening);
     test_sleep(); //this delay is so the thread can start TODO, use a lock until the socket is created
     MotorError output;
-    EXPECT_THROW(output = odrv.get_motor_error(),UnexpectedMessageException);
+    EXPECT_NO_THROW(output = odrv.get_motor_error());
     
     if (wfmaa_thread.joinable()){ 
         wfmaa_thread.join();
     }
-    EXPECT_TRUE(can_frame_comparator(expected_petition, msg_buffer[0]));
-    EXPECT_TRUE(can_frame_comparator(given_answer, msg_buffer[1]));
+    can_frame_comparator(expected_petition, msg_buffer[0]);
+    can_frame_comparator(unknown_answer, msg_buffer[1]);
+    can_frame_comparator(expected_petition, msg_buffer[2]);
+    can_frame_comparator(good_answer, msg_buffer[3]);
 }
 
 TEST_F(commandsTest,get_motor_error_max_value){

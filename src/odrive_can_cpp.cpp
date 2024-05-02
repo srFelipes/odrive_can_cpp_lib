@@ -184,9 +184,7 @@ MotorError OdriveCan::get_motor_error(){
              return static_cast<MotorError>(output_candidate);
         }
     }
-    char error_msg[50];
-    sprintf(error_msg, "Received unexpected data frame  0x%lx", output_candidate); // Format output_candidate in hexadecimal
-    throw UnexpectedMessageException(error_msg);
+    return get_motor_error();
 }
 
 
