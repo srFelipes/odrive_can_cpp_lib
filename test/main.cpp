@@ -436,6 +436,33 @@ TEST_F(commandsTest, get_motor_error_waits_for_motor_error_msg){
     EXPECT_TRUE(MotorError::NONE == output);
 }
 
+TEST_F(commandsTest, periodic_pos_estimate_bad_sizes_are_ignored){
+    int talk_soc = create_socket();
+    can_frame pos_frame;
+    pos_frame.can_id = (4<<5)|0x009;
+    memset(&pos_frame.data,0,8);
+    odrv.last_encoder_est.pos_estimate = 0.0;
+    odrv.last_encoder_est.vel_estimate = 0.0;
+    float value;
+    for (int i=1; i<=8; i++){
+        pos_frame.len = i;
+        value = static_cast<float>(i);
+        memcpy(&pos_frame.data[0],&value,4);
+        memcpy(&pos_frame.data[4],&value,4);
+        send_to_socket(talk_soc,pos_frame);
+        test_sleep();
+        if (i<8){
+            EXPECT_TRUE(0.0 == odrv.last_encoder_est.pos_estimate);
+            EXPECT_TRUE(0.0 == odrv.last_encoder_est.vel_estimate);
+        }
+        else{
+            EXPECT_TRUE(8.0 == odrv.last_encoder_est.pos_estimate);
+            EXPECT_TRUE(8.0 == odrv.last_encoder_est.vel_estimate);
+        }
+    }
+
+}
+
 
 
 int main(int argc, char **argv) {
