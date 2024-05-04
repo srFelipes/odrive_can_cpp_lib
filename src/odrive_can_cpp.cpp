@@ -97,7 +97,9 @@ void OdriveCan::listen_routine(){
                     else if (waiting_for_frame){
                         if ((last_frame.can_id == expected_frame.can_id)
                             & (last_frame.len == expected_frame.len)){
+                                memcpy(expected_frame.data,last_frame.data,8);
                                 waiting_for_frame = false;
+
                         }
                     }
                 }
@@ -176,7 +178,7 @@ MotorError OdriveCan::get_motor_error(){
     format.can_id = odrv_can_id(cmd_id::MOTOR_ERROR);
     for (int i=0; i<N_OF_RETRIES; i++){
         send_message(cmd_id::MOTOR_ERROR,format);
-        can_frame ans = last_frame;
+        can_frame ans = expected_frame;
         uint64_t output_candidate;
         memcpy(&output_candidate,ans.data,ans.len);
         for (int i = 0; i<MOTOR_ERROR_LEN;i++){

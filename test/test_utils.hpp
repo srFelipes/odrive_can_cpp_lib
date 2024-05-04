@@ -22,8 +22,11 @@ void test_sleep(){
 }
 
 void send_to_socket(int soc, can_frame frame){
-        write(soc, &frame, sizeof(frame));
-        test_sleep();
+    int size = sizeof(frame);
+    int result = 0;
+    while (result!=size){
+        result =  write(soc, &frame, sizeof(frame));
+    }
     }
 bool can_frame_comparator(can_frame expected, can_frame actual){
     EXPECT_TRUE(expected.can_id == actual.can_id)<< "expected = " 
