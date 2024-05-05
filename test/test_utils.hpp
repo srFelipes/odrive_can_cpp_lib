@@ -96,7 +96,7 @@ void wait_for_msg_and_answer(can_frame msg_to_wait, can_frame* answer, int answe
     pollfds[0].fd = soc; // Set the file descriptor to monitor
     pollfds[0].events = POLLIN; // Set the events to monitor for (in this case, readability)
     int k = 0;
-    while (flag){
+    while (*flag){
         int ret = poll(pollfds, 1, TEST_DELAY); // Monitor indefinitely for events on the file descriptor
         if (ret > 0) {
             if (pollfds[0].revents & POLLIN) { // Check if the file descriptor is ready for reading
@@ -133,6 +133,39 @@ void wait_for_msg_and_answer(can_frame msg_to_wait, can_frame* answer, int answe
                 }
             }
         } else if (ret < 0) {
+            // Handle poll error
+            std::cout<<"poll error wait_for_msg\n";
+        }
+    }
+    close(soc);
+}
+
+void listener(can_frame* buffer, bool* listening, bool* ready){
+    int soc = create_socket();
+    int n_of_msgs = 0;
+    int poll_size;
+    int read_bytes;
+    can_frame last_message;
+    int frame_size = sizeof(can_frame);
+
+    struct pollfd pollfds[1];
+    pollfds[0].fd = soc; // Set the file descriptor to monitor
+    pollfds[0].events = POLLIN; // Set the events to monitor for (in this case, readability)
+
+    *ready = true;
+    while (*listening){
+        poll_size =  poll(pollfds,1,TEST_DELAY);
+        if ((poll_size>0) & (pollfds[0].revents & POLLIN)){
+            read_bytes = read(soc, &last_message, frame_size);
+            if (read_bytes>0){
+                memcpy(&buffer[n_of_msgs],&last_message,frame_size);
+                n_of_msgs++;
+            }
+            else if (read_bytes<0){
+                //handle read error
+            }
+        }
+        else if (poll_size < 0) {
             // Handle poll error
             std::cout<<"poll error wait_for_msg\n";
         }

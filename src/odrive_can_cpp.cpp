@@ -190,5 +190,9 @@ MotorError OdriveCan::get_motor_error(){
     throw MaximumNumberOfRetriesReached("get_motor_error reached the maximum number of retries");
 }
 
+EncoderError OdriveCan::get_encoder_error(){
+    return EncoderError::NONE;
+}
+
 
 }
