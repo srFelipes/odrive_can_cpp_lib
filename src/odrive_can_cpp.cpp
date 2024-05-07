@@ -191,7 +191,14 @@ MotorError OdriveCan::get_motor_error(){
 }
 
 EncoderError OdriveCan::get_encoder_error(){
-    return EncoderError::NONE;
+    can_frame format;
+    format.len = 4;
+    format.can_id = odrv_can_id(cmd_id::ENCODER_ERROR);
+    send_message(cmd_id::ENCODER_ERROR,format);
+    can_frame ans = expected_frame;
+    EncoderError output_candidate;
+    memcpy(&output_candidate,ans.data,ans.len);
+    return output_candidate;
 }
 
 
