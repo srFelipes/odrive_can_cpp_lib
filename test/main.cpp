@@ -512,26 +512,29 @@ class callAndResponseCmds : public testing::TestWithParam<testParams>{
     int n_of_good_msgs;
     std::vector<uint64_t> good_msgs;
 
+    //containers
+    can_frame expected;
+    can_frame answers[100];
+    can_frame given_answer;
+
     void param_init(){
         func = GetParam().func;
         ans_size = GetParam().ans_size;
         n_of_good_msgs = GetParam().n_of_good_msgs;
         good_msgs = GetParam().good_msgs;
+        
+        expected.can_id = CAN_RTR_FLAG|(4<<5);
+        expected.len = 0;
+        given_answer.can_id = (4<<5);
+        given_answer.len = ans_size;
     }
     callAndResponseCmds():  odrv("vcan0",4U){} //the id has to be written as litteral otherwise the first test gets a random number
 };
 
 TEST_P(callAndResponseCmds,happy_case){
     param_init();
-
-    can_frame expected;
-    expected.can_id = CAN_RTR_FLAG|(4<<5);
-    expected.len = 0;
-
-    can_frame given_answer;
-    given_answer.can_id = (4<<5);
-    given_answer.len = ans_size;
-    can_frame answers[1];
+    
+    
     for (int i=0;i<n_of_good_msgs;i++){
         switch (func)
         {
@@ -558,7 +561,6 @@ TEST_P(callAndResponseCmds,happy_case){
         case GetFunction::ENCODER_ERROR:
             /* code */
             actual_EncoderError = odrv.get_encoder_error();
-            expected_EncoderError;
             memcpy(&expected_EncoderError,&good_msgs[i],ans_size);
             EXPECT_EQ(actual_EncoderError,expected_EncoderError);
             break;
