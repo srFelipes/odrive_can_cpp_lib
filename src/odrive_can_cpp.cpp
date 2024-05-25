@@ -95,11 +95,15 @@ void OdriveCan::listen_routine(){
                             memcpy(&last_encoder_est.vel_estimate,&last_frame.data[4],4);
                         }
                     else if (waiting_for_frame){
-                        if ((last_frame.can_id == expected_frame.can_id)
-                            & (last_frame.len == expected_frame.len)){
+                        if (last_frame.can_id == expected_frame.can_id){
+                            if  (last_frame.len == expected_frame.len){
                                 memcpy(expected_frame.data,last_frame.data,8);
                                 waiting_for_frame = false;
-
+                            }
+                            else{
+                                waiting_for_frame_flags = -1;
+                                waiting_for_frame = false;
+                            }
                         }
                     }
                 }
@@ -146,9 +150,15 @@ int OdriveCan::send_message(cmd_id command, can_frame frame_format){
     frame.can_id |= CAN_RTR_FLAG;
     expected_frame = frame_format;
     waiting_for_frame = true;
+    waiting_for_frame_flags = 0;
     int result = send_message(frame);
     while (waiting_for_frame){}
-    return result;
+    if (waiting_for_frame_flags == 0){
+        return result;
+    }
+    else{
+        return OdriveCan::send_message(command, frame_format);
+    }
 }
 
 int OdriveCan::receive_message(can_frame& frame) {
@@ -200,6 +210,4 @@ EncoderError OdriveCan::get_encoder_error(){
     memcpy(&output_candidate,ans.data,ans.len);
     return output_candidate;
 }
-
-
 }

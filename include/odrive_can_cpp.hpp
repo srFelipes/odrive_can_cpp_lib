@@ -61,6 +61,7 @@ namespace odrive_can{
         bool thread_started;
 
         bool waiting_for_frame;
+        int waiting_for_frame_flags;
         can_frame expected_frame;
         
         int send_message(const can_frame& frame);

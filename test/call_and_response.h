@@ -78,7 +78,6 @@ class callAndResponseCmds : public testing::TestWithParam<testParams>{
 TEST_P(callAndResponseCmds,happy_case){
     param_init();
     
-    
     for (int i=0;i<n_of_good_msgs;i++){
         switch (func)
         {
@@ -115,6 +114,43 @@ TEST_P(callAndResponseCmds,happy_case){
         if (wfmaa_thread.joinable()){
             wfmaa_thread.join();
         }
+    }
+}
+
+TEST_P(callAndResponseCmds,bad_size_ignored){
+    param_init();
+
+    switch (func){
+        case GetFunction::ENCODER_ERROR:
+            expected.can_id |= 4; //cmd_id::ENCODER_ERROR
+            given_answer.can_id |= 4;
+            break;
+        default:
+            break;
+    }
+    //first message is wrong size, second message is good size
+    memcpy(given_answer.data,&good_msgs[1],ans_size);
+    answers[0] = given_answer;
+    answers[1] = answers[0];
+    memcpy(answers[1].data,&good_msgs[0],ans_size);
+    answers[0].len--;
+    std::thread wfmaa_thread(wait_for_msg_and_answer,
+                    expected,answers, 2, true, &fixture_listening);
+    test_sleep();
+    EncoderError actual;
+    EncoderError expected;
+    switch (func){
+        case GetFunction::ENCODER_ERROR:
+            actual = odrv.get_encoder_error();
+            
+            memcpy(&expected,&good_msgs[0],ans_size);
+            EXPECT_EQ(expected,actual);
+        default:
+            break;
+    }
+    fixture_listening = false;
+    if (wfmaa_thread.joinable()){
+            wfmaa_thread.join();
     }
 }
 
