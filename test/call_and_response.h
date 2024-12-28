@@ -23,9 +23,7 @@ struct testParams
     GetFunction func;
     int ans_size;
     // std::vector<uint64_t> bad_msgs;
-    // int n_of_bad_msgs;
     std::vector<uint64_t> good_msgs;
-    int n_of_good_msgs;
 };
 
 
@@ -64,8 +62,8 @@ class callAndResponseCmds : public testing::TestWithParam<testParams>{
     void param_init(){
         func = GetParam().func;
         ans_size = GetParam().ans_size;
-        n_of_good_msgs = GetParam().n_of_good_msgs;
         good_msgs = GetParam().good_msgs;
+        n_of_good_msgs = good_msgs.size();
         
         expected.can_id = CAN_RTR_FLAG|(4<<5);
         expected.len = 0;
@@ -78,14 +76,14 @@ class callAndResponseCmds : public testing::TestWithParam<testParams>{
 TEST_P(callAndResponseCmds,happy_case){
     param_init();
     
-    for (int i=0;i<n_of_good_msgs;i++){
+    for (uint64_t good_msg: good_msgs){
         switch (func)
         {
         case GetFunction::ENCODER_ERROR:
             /* code */
             expected.can_id |= 4; //cmd_id::ENCODER_ERROR
             given_answer.can_id |= 4;
-            memcpy(given_answer.data,&good_msgs[i],ans_size);
+            memcpy(given_answer.data,&good_msg,ans_size);
             answers[0] = given_answer;
             EncoderError answer;
             break;
@@ -104,7 +102,7 @@ TEST_P(callAndResponseCmds,happy_case){
         case GetFunction::ENCODER_ERROR:
             /* code */
             actual_EncoderError = odrv.get_encoder_error();
-            memcpy(&expected_EncoderError,&good_msgs[i],ans_size);
+            memcpy(&expected_EncoderError,&good_msg,ans_size);
             EXPECT_EQ(actual_EncoderError,expected_EncoderError);
             break;
         
@@ -154,8 +152,12 @@ TEST_P(callAndResponseCmds,bad_size_ignored){
     }
 }
 
+testParams encoder_params = {GetFunction::ENCODER_ERROR,      //GetFunction
+                             4,                               //answer size
+                             {0,1,2,4,8,0x10,0x20,0x40,0x80}}; //Good messages};                              //number of good messages
+
+
 INSTANTIATE_TEST_SUITE_P(Values,callAndResponseCmds,
     testing::Values(
-        testParams{GetFunction::ENCODER_ERROR,4,{0,1,2,4,8,0x10,0x20,0x40,0x80},9}
-    )
+        encoder_params)
 );
