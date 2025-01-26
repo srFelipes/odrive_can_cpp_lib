@@ -10,6 +10,7 @@
 #include <linux/can/raw.h>
 #include <string>
 #include <iostream>
+#include <vector>
 
 #include <thread>
 #include <chrono>
@@ -17,6 +18,16 @@
 #include <poll.h>
 
 #define TEST_DELAY 15
+
+bool operator==(const can_frame &lhs, const can_frame &rhs) {
+    return (lhs.can_id == rhs.can_id &&
+            lhs.can_dlc == rhs.can_dlc &&
+            std::memcmp(lhs.data, rhs.data, lhs.can_dlc) == 0);
+}
+
+bool operator!=(const can_frame &lhs, const can_frame &rhs) {
+    return !(lhs == rhs);
+}
 
 void test_sleep(){
     std::this_thread::sleep_for(std::chrono::milliseconds(TEST_DELAY));
@@ -86,6 +97,53 @@ int create_socket(){
     return output_socket;
 }
 
+void answer(can_frame petition,
+            std::vector<can_frame> answers, 
+            int retries,
+            bool &initialization_done,
+            bool &end_answer){
+    if (!initialization_done ||
+        (retries < 0)){
+        return;
+    }
+    int soc = create_socket();
+    can_frame last_msg;
+    int read_size;
+    bool break_the_loop = true;
+    
+    bool last_read = true;
+    struct pollfd pollfds[1];
+    pollfds[0].fd = soc; // Set the file descriptor to monitor
+    pollfds[0].events = POLLIN; // Set the events to monitor for (in this case, readability)
+    int k = 0;
+    initialization_done = true;
+    while (end_answer){
+        int ret = poll(pollfds, 1, TEST_DELAY); // Monitor indefinitely for events on the file descriptor
+        if (ret > 0) {
+            if (pollfds[0].revents & POLLIN) { // Check if the file descriptor is ready for reading
+                // Read data from the socket
+                ssize_t bytes_read = read(soc, &last_msg, sizeof(can_frame));
+
+                if (bytes_read < 0) {
+                    // Handle error
+                    std::cout<<"read error wait_for_msg\n";
+                    return;
+                } else {
+                    if (petition == last_msg){
+                        if (retries == 1){
+                            for (can_frame cf: answers){
+                                send_to_socket(soc,cf);
+                            }
+                        }
+                        else{
+                            retries--;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 void wait_for_msg_and_answer(can_frame msg_to_wait, can_frame* answer, int answer_length, bool answer_per_petition, bool* flag){
     int soc = create_socket();
     can_frame last_msg;
