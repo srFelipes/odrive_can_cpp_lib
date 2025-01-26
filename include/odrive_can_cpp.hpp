@@ -172,28 +172,6 @@ namespace odrive_can{
         ControllerError get_controller_error();
         int odrv_can_id(cmd_id cmd);
     };
-    class Messenger
-    {
-        private:
-            const std::string interface_name;
-            can_filter filter;
-            int listening_socket;            
-            std::thread listening_thread;
-            bool listening;
-        protected:
-            Messenger(const std::string& interface, can_filter filter);
-            ~Messenger();
-            virtual void callback();
-            void listening();
-            can_frame last_frame;
-            bool listening_started;
-        public:
-            int send(can_frame frame);
-            int ask(can_frame command);
-            bool is_listening();
-            int stop();
-            int restart();
-    };
 };
 
 

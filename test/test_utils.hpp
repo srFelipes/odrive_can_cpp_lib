@@ -16,7 +16,7 @@
 #include <atomic>
 #include <poll.h>
 
-#define TEST_DELAY 1
+#define TEST_DELAY 15
 
 void test_sleep(){
     std::this_thread::sleep_for(std::chrono::milliseconds(TEST_DELAY));

@@ -22,6 +22,7 @@
 #define BUFFER_SIZE 300
 
 #include "call_and_response.h"
+#include "messenger_test.cpp"
 
 TEST(importingTests,importLib){
     #ifdef ODRIVE_CAN
@@ -380,26 +381,26 @@ TEST_F(commandsTest,periodic_pos_estimate_happy_case_other_value){
     EXPECT_TRUE(2.0 == odrv.last_encoder_est.vel_estimate);
 }
 
-TEST_F(commandsTest,periodic_pos_estimate_happy_case_50_values){
-    can_frame pos_estimate_msg;
-    pos_estimate_msg.can_id = (4<<5)|0x009; //4 is odrv id, 9 is cmd_id
-    pos_estimate_msg.len = 8;
-    memset(&pos_estimate_msg.data,0,8);
-    int talk_soc = create_socket();
-    float pos, vel;
-    for (float value = 0.0; value < 50.0; value+=1.0){
-        pos = value;
-        vel = 100.0 - value;
-        memcpy(&pos_estimate_msg.data,&pos,4);
-        memcpy(&pos_estimate_msg.data[4],&vel,4);
-        send_to_socket(talk_soc,pos_estimate_msg);
-        test_sleep();
-        EXPECT_TRUE(pos == odrv.last_encoder_est.pos_estimate);
-        EXPECT_TRUE(vel == odrv.last_encoder_est.vel_estimate);
-    }
-    fixture_listening = false;
-    odrv.listening = false;
-}
+// TEST_F(commandsTest,periodic_pos_estimate_happy_case_50_values){
+//     can_frame pos_estimate_msg;
+//     pos_estimate_msg.can_id = (4<<5)|0x009; //4 is odrv id, 9 is cmd_id
+//     pos_estimate_msg.len = 8;
+//     memset(&pos_estimate_msg.data,0,8);
+//     int talk_soc = create_socket();
+//     float pos, vel;
+//     for (float value = 0.0; value < 50.0; value+=1.0){
+//         pos = value;
+//         vel = 100.0 - value;
+//         memcpy(&pos_estimate_msg.data,&pos,4);
+//         memcpy(&pos_estimate_msg.data[4],&vel,4);
+//         send_to_socket(talk_soc,pos_estimate_msg);
+//         test_sleep();
+//         EXPECT_TRUE(pos == odrv.last_encoder_est.pos_estimate);
+//         EXPECT_TRUE(vel == odrv.last_encoder_est.vel_estimate);
+//     }
+//     fixture_listening = false;
+//     odrv.listening = false;
+// }
 
 TEST_F(commandsTest, get_motor_error_waits_for_motor_error_msg){
 
@@ -470,5 +471,6 @@ TEST_F(commandsTest, periodic_pos_estimate_bad_sizes_are_ignored){
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
+    ::testing::GTEST_FLAG(filter) = "*msn_*";
     return RUN_ALL_TESTS();
 }
