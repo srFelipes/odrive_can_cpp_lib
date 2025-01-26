@@ -24,11 +24,13 @@ endif()
 # Add library source files
 set(LIB_SOURCES
     ${PROJECT_SOURCE_DIR}/odrive_can_cpp.cpp
+    ${PROJECT_SOURCE_DIR}/Messenger.cpp
 )
 
 # Add library header files
 set(LIB_HEADERS
     ${PROJECT_INCLUDE_DIR}/odrive_can_cpp.hpp
+    ${PROJECT_INCLUDE_DIR}/Messenger.hpp
 )
 
 # Create the library

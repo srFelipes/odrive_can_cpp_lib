@@ -9,6 +9,7 @@
 #include <string>
 #include <iostream>
 #include <poll.h>
+#include "Messenger.hpp"
 
 #define ODRV_CAN_MASK 0x7e0
 #define ODRV_CMD_MASK 0b11111
