@@ -12,11 +12,11 @@ class Messenger
         const std::string s_interface_name;
         can_filter cf_filter;
         int i_listening_socket;            
-        std::thread th_listening_thread;
         bool b_listening;
     protected:
         virtual void callback() = 0;
-        void listening();
+        std::thread th_listening_thread;
+        void listening_routine();
         can_frame last_frame;
         bool listening_started;
     public:

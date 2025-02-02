@@ -22,7 +22,7 @@
 #define BUFFER_SIZE 300
 
 #include "call_and_response.h"
-#include "messenger_test.cpp"
+#include "messenger_test.h"
 
 TEST(importingTests,importLib){
     #ifdef ODRIVE_CAN
