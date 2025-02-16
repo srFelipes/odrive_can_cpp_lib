@@ -4,6 +4,7 @@
 
 #include <string>
 #include <linux/can.h>
+#include <atomic>
 
 #define MSN
 class Messenger
@@ -12,13 +13,16 @@ class Messenger
         const std::string s_interface_name;
         can_filter cf_filter;
         int i_listening_socket;            
-        bool b_listening;
+        std::atomic<bool> b_listening;
+        std::atomic<bool> b_thread_alive;
     protected:
         virtual void callback() = 0;
         std::thread th_listening_thread;
         void listening_routine();
         can_frame last_frame;
         bool listening_started;
+        bool thread_start();
+        void thread_kill();
     public:
         Messenger(const std::string& interface, can_filter filter);
         ~Messenger();

@@ -231,3 +231,30 @@ void listener(can_frame* buffer, bool* listening, bool* ready){
     }
     close(soc);
 }
+
+/**
+ * @brief this functions blocks until either condition returns true
+ * or timeout milliseconds have passed since it was called
+ * 
+ * @param condition a boolean expresion to be evaluated, is it returns true it braks
+ * @param timeout in ms, breaks when this amount of ms have passed since this function
+ *  is called
+ * @return int 
+ */
+int wait_for_condition_with_timeout(const std::function <bool()> & condition,
+                                    int timeout){
+    auto start_time = std::chrono::steady_clock::now();
+    auto chrono_timeout = std::chrono::milliseconds(timeout);
+    auto current_time = start_time;
+    while (true){
+        auto diff = std::chrono::steady_clock::now()-start_time;
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(diff)
+            > chrono_timeout){
+            break;
+        }
+        if (condition()){
+            return 0;
+        }
+    }
+    return -1;
+}
