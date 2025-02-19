@@ -14,7 +14,7 @@ class Messenger
         can_filter cf_filter;
         int i_listening_socket;            
         std::atomic<bool> b_listening;
-        std::atomic<bool> b_thread_alive;
+        std::atomic<bool> b_thread_started;
     protected:
         virtual void callback() = 0;
         std::thread th_listening_thread;

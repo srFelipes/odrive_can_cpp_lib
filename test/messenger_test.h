@@ -6,6 +6,8 @@
 #include "Messenger.hpp"
 #include "test_utils.hpp"
 
+int wait_timeout = 100;
+
 TEST(msn_importingTests,importMessenger){
     #ifdef MSN
     EXPECT_TRUE(true);
@@ -74,8 +76,24 @@ TEST_F(msn_fixture, listen_1_msg){
     int send_socket = create_socket(); 
     send_to_socket(send_socket, expected);
     int wait_result = wait_for_condition_with_timeout(
-                      [this](){return (msn.get_number_of_callbacks() > 1);},
-                      100);
+                      [this](){return (msn.get_number_of_callbacks() > 0);},
+                      wait_timeout);
     EXPECT_TRUE(0 == wait_result);
     EXPECT_TRUE(expected == msn.get_last_msg());
+}
+
+TEST_F(msn_fixture, listen_10_msg){
+    can_frame expected;
+    expected.can_id = 4 << 5;
+    expected.len = 1;
+    int send_socket = create_socket();
+    for (int i = 0; i<10 ; i++){
+        expected.data[0] = i;
+        send_to_socket(send_socket, expected);
+        int wait_result = wait_for_condition_with_timeout(
+                        [this, i](){return (msn.get_number_of_callbacks() ==(i+1));},
+                        wait_timeout);
+        EXPECT_TRUE(0 == wait_result);
+        EXPECT_TRUE(expected == msn.get_last_msg());
+    }
 }
