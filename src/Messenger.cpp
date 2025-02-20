@@ -10,7 +10,7 @@
 #include <string>
 #include <cstring>
 #include <poll.h>
-
+#include <linux/can/raw.h>
 
 int create_socket(const std::string& interface){
         int output_socket;
@@ -40,6 +40,11 @@ void Messenger::listening_routine(){
     pollfds[0].fd = i_listening_socket; // Set the file descriptor to monitor
     pollfds[0].events = POLLIN; // Set the events to monitor for (in this case, readability)
     b_thread_started = true;
+
+    // Set filter (accept only specific CAN IDs)
+    can_filter filter[1] = {cf_filter};
+    setsockopt(i_listening_socket, SOL_CAN_RAW, CAN_RAW_FILTER, &filter, sizeof(filter));
+
     while (b_listening){
         int i_n_of_events = poll(pollfds, 1, 1); // Monitor indefinitely for events on the file descriptor
         if (i_n_of_events > 0){

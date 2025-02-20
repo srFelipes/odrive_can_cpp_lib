@@ -97,3 +97,26 @@ TEST_F(msn_fixture, listen_10_msg){
         EXPECT_TRUE(expected == msn.get_last_msg());
     }
 }
+
+TEST_F(msn_fixture, filter_10msg
+){
+    can_frame expected, not_expected;
+    expected.can_id = 4 << 5;
+    expected.len = 1;
+    not_expected.can_id = 3 << 5;
+    not_expected.len = 1;
+    int send_socket = create_socket();
+    int last_n_of_calls = 0;
+    for (int i = 0; i<10 ; i++){
+        expected.data[0] = i;
+        not_expected.data[0] = i;
+        send_to_socket(send_socket, expected);
+        send_to_socket(send_socket, not_expected);
+        int wait_result = wait_for_condition_with_timeout(
+                        [this, i](){return (msn.get_number_of_callbacks() ==(i+1));},
+                        wait_timeout);
+        EXPECT_TRUE(0 == wait_result);
+        EXPECT_TRUE(expected == msn.get_last_msg());
+        EXPECT_FALSE(not_expected == msn.get_last_msg());
+    }
+}
