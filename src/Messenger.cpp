@@ -69,6 +69,7 @@ Messenger::Messenger(const std::string& interface, can_filter filter):
     s_interface_name(interface),
     cf_filter(filter){
         b_listening = false;
+        i_talking_socket = create_socket(s_interface_name);
     }
 Messenger::~Messenger(){
     thread_kill();
@@ -87,6 +88,9 @@ void Messenger::thread_kill(){
     }
 }
 int Messenger::send(can_frame frame){
+    if (write(i_talking_socket, &frame,sizeof(can_frame)) != -1){
+        return 0;
+    };
     return -1;
 }
 int Messenger::ask(can_frame command){

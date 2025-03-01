@@ -88,7 +88,7 @@ class commandsTest : public testing::Test{
     
     can_frame msg_buffer[BUFFER_SIZE];
     int msg_count = 0;
-    bool fixture_listening = true;
+    std::atomic <bool> fixture_listening;
     std::thread listening_thread;
     odrive_can::OdriveCan odrv;
     public:

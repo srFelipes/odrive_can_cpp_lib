@@ -2,7 +2,7 @@
 #include <string>
 #include <iostream>
 #include <thread>
-
+#include <atomic>
 
 #include "odrive_can_cpp.hpp"
 #include "odrive_enums.hpp"
@@ -30,7 +30,9 @@ struct testParams
 class callAndResponseCmds : public testing::TestWithParam<testParams>{
     protected:
     void SetUp(){
-        listening_thread = std::thread(listener,&fixture_buffer[0],&fixture_listening,&listener_started);
+        fixture_listening = true;
+        listener_started = false;
+        listening_thread = std::thread(listener,&fixture_buffer[0],&fixture_listening,&listener_started,&number_of_calls);
         while (!listener_started){}
     }
     void TearDown(){
@@ -41,10 +43,10 @@ class callAndResponseCmds : public testing::TestWithParam<testParams>{
         }
     }
     
-
+    std::atomic <int> number_of_calls;
     can_frame fixture_buffer[BUFFER_SIZE];
-    bool fixture_listening = true;
-    bool listener_started = false;
+    std::atomic <bool> fixture_listening;
+    std::atomic <bool> listener_started;
     std::thread listening_thread;
     odrive_can::OdriveCan odrv;
 

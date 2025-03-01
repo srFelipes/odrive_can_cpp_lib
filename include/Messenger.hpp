@@ -12,7 +12,8 @@ class Messenger
     private:
         const std::string s_interface_name;
         can_filter cf_filter;
-        int i_listening_socket;            
+        int i_listening_socket;
+        int i_talking_socket;            
         std::atomic<bool> b_listening;
         std::atomic<bool> b_thread_started;
     protected:

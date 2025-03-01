@@ -120,3 +120,44 @@ TEST_F(msn_fixture, filter_10msg
         EXPECT_FALSE(not_expected == msn.get_last_msg());
     }
 }
+
+class msn_with_listener: public msn_fixture{
+    public:
+        void SetUp(){
+            thread_alive = true;
+            thread_started = false;
+            socket = create_socket();
+            fixture_thread = std::thread(listener,
+                                         fixture_cf_buffer,
+                                         &thread_alive,
+                                         &thread_started,
+                                         &n_received_msgs);
+            while (!thread_started){};
+        }
+        void TearDown(){
+            close(socket);
+            thread_alive = false;
+            if (fixture_thread.joinable()){
+                fixture_thread.join();
+            }
+        }
+        can_frame fixture_cf_buffer[100];
+        std::thread fixture_thread;
+        std::atomic <bool> thread_alive;
+        std::atomic <bool> thread_started;
+        std::atomic <int> n_received_msgs;
+}; 
+
+TEST_F(msn_with_listener, send_1_msg){
+    can_frame expected;
+    expected.len = 1;
+    expected.data[0] = 0xfe;
+    expected.can_id = 4 << 5;
+    int send_result = msn.send(expected);
+    int wait_result = wait_for_condition_with_timeout(
+        [this](){return (n_received_msgs == 1);},
+        wait_timeout);
+    EXPECT_TRUE(0 == wait_result);
+    EXPECT_TRUE(expected == fixture_cf_buffer[0]);
+    EXPECT_TRUE(0 == send_result);    
+}

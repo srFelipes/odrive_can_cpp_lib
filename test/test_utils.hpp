@@ -144,7 +144,12 @@ void answer(can_frame petition,
         }
     }
 }
-void wait_for_msg_and_answer(can_frame msg_to_wait, can_frame* answer, int answer_length, bool answer_per_petition, bool* flag){
+void wait_for_msg_and_answer(
+    can_frame msg_to_wait,
+    can_frame* answer, 
+    int answer_length, 
+    bool answer_per_petition, 
+    std::atomic<bool>* flag){
     int soc = create_socket();
     can_frame last_msg;
     int read_size;
@@ -199,9 +204,15 @@ void wait_for_msg_and_answer(can_frame msg_to_wait, can_frame* answer, int answe
     close(soc);
 }
 
-void listener(can_frame* buffer, bool* listening, bool* ready){
+void listener(
+    can_frame* buffer,
+    std::atomic <bool>* listening,
+    std::atomic <bool>* ready,
+    std::atomic <int> *num_of_calls){
     int soc = create_socket();
-    int n_of_msgs = 0;
+    std::atomic <int> default_nofmsgs;
+    std::atomic <int> &n_of_msgs = (num_of_calls) ? *num_of_calls: default_nofmsgs;
+    n_of_msgs = 0;
     int poll_size;
     int read_bytes;
     can_frame last_message;
