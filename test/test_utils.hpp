@@ -269,3 +269,58 @@ int wait_for_condition_with_timeout(const std::function <bool()> & condition,
     }
     return -1;
 }
+
+void listen_and_answer(
+    const std::vector<can_frame> &messages,
+    std::atomic <bool> &thread_started,
+    std::atomic <bool> &thread_listening,
+    bool message_per_request
+){
+    thread_started = false;
+    int soc = create_socket();
+    
+    can_frame expected_msg = messages[0];
+    int poll_size;
+    int read_bytes;
+    can_frame last_message;
+    int frame_size = sizeof(can_frame);
+
+    struct pollfd pollfds[1];
+    pollfds[0].fd = soc; // Set the file descriptor to monitor
+    pollfds[0].events = POLLIN; // Set the events to monitor for (in this case, readability)
+    int current_message_index = 1;
+    thread_started = true;
+    while (thread_listening){
+        poll_size =  poll(pollfds,1,TEST_DELAY);
+        if ((poll_size>0) & (pollfds[0].revents & POLLIN)){
+            read_bytes = read(soc, &last_message, frame_size);
+            if (read_bytes>0){
+                if (last_message == expected_msg){
+                    if (message_per_request){
+                        write(soc,
+                              &messages[current_message_index],
+                              frame_size);
+                        current_message_index++;
+                        if (current_message_index == messages.size()){break;}
+                    }
+                    else{
+                        for (int i=1; i<messages.size(); i++){
+                            write(soc,
+                                &messages[i],
+                                frame_size);
+                        }
+                    }
+                }
+            }
+            else if (read_bytes<0){
+                //handle read error
+            }
+        }
+        else if (poll_size < 0) {
+            // Handle poll error
+            std::cout<<"poll error wait_for_msg\n";
+        }
+    }
+    close(soc);
+
+}

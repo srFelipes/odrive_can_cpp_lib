@@ -28,7 +28,7 @@ class Messenger
         Messenger(const std::string& interface, can_filter filter);
         ~Messenger();
         int send(can_frame frame);
-        int ask(can_frame command);
+        int ask(can_frame &command);
         bool is_listening();
         int stop();
         int restart();

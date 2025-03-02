@@ -93,8 +93,13 @@ int Messenger::send(can_frame frame){
     };
     return -1;
 }
-int Messenger::ask(can_frame command){
-    return -1;
+int Messenger::ask(can_frame &command){
+    can_frame petition = command;
+    petition.can_id |= CAN_RTR_FLAG;
+    send(petition);
+    command.len = 1;
+    command.data[0] = 69;
+    return 0;
 }
 bool Messenger::is_listening(){
     return b_listening;
