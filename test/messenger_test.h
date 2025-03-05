@@ -191,7 +191,7 @@ TEST_F(msn_with_listener, ask_1_msg){
                                          std::ref(wfmaa_alive),
                                          false);
     while(!wfmaa_started){};
-    EXPECT_TRUE(0 == msn.ask(petition));
+    EXPECT_TRUE(msn.ask(petition));
     int wait_result = 
         wait_for_condition_with_timeout(
             [this](){return (2 == n_received_msgs);},
@@ -204,4 +204,60 @@ TEST_F(msn_with_listener, ask_1_msg){
     EXPECT_TRUE(expected_answer == petition);
     EXPECT_TRUE(petition_for_thread == fixture_cf_buffer[0]);
     EXPECT_TRUE(expected_answer == fixture_cf_buffer[1]);
+}
+
+TEST_F(msn_with_listener, ask_10_msgs){
+    std::atomic <bool> wfmaa_started;
+    std::atomic <bool> wfmaa_alive;
+
+    wfmaa_alive = true;
+    wfmaa_started = false;
+    std::vector<can_frame> messages;
+
+    can_frame petition;
+    petition.can_id = (4 << 5) | (20);
+    petition.len = 0;
+
+    can_frame expected_answer;
+    expected_answer.can_id = petition.can_id;
+    expected_answer.len = 1;
+
+    can_frame petition_for_thread = petition;
+    petition_for_thread.can_id |= CAN_RTR_FLAG;
+
+    messages.push_back(petition_for_thread);
+
+    for (int i=0; i<10; i++){
+        expected_answer.data[0] = i;
+        messages.push_back(expected_answer);
+    }
+    
+    std::thread listen_and_answer_thread(listen_and_answer,
+                                         std::ref(messages),
+                                         std::ref(wfmaa_started),
+                                         std::ref(wfmaa_alive),
+                                         true);
+    while(!wfmaa_started){};
+    int wait_result;
+    for (int k=0; k<10; k++){
+        EXPECT_TRUE(msn.ask(petition));
+        wait_result = 
+        wait_for_condition_with_timeout(
+            [this, k](){return (2*(k+1) == n_received_msgs);},
+            wait_timeout);
+        EXPECT_TRUE(0 == wait_result);
+        expected_answer.data[0] = k;
+        EXPECT_TRUE(expected_answer == petition);
+
+        EXPECT_TRUE(petition_for_thread == fixture_cf_buffer[2*k]);
+        EXPECT_TRUE(expected_answer == fixture_cf_buffer[2*k+1]);
+        petition.can_id = (4 << 5) | (20);
+        petition.len = 0;
+    }
+    
+    wfmaa_alive = false;
+    if (listen_and_answer_thread.joinable()){
+        listen_and_answer_thread.join();
+    }
+    
 }

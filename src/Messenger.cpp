@@ -54,6 +54,10 @@ void Messenger::listening_routine(){
                     // Handle error
                     std::cout<<"read error odrv_listen\n";
                 } else{
+                    if (asking && (cf_waiting_for.can_id == last_frame.can_id)){
+                        cf_waiting_for = last_frame;
+                        asking = false;
+                    }
                     callback();
                 }
             }
@@ -93,13 +97,15 @@ int Messenger::send(can_frame frame){
     };
     return -1;
 }
-int Messenger::ask(can_frame &command){
+bool Messenger::ask(can_frame &command){
     can_frame petition = command;
     petition.can_id |= CAN_RTR_FLAG;
+    cf_waiting_for = command;
     send(petition);
-    command.len = 1;
-    command.data[0] = 69;
-    return 0;
+    asking = true;
+    while(asking){};    
+    command = cf_waiting_for;
+    return true;
 }
 bool Messenger::is_listening(){
     return b_listening;

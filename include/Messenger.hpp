@@ -5,6 +5,7 @@
 #include <string>
 #include <linux/can.h>
 #include <atomic>
+#include <mutex>
 
 #define MSN
 class Messenger
@@ -16,6 +17,9 @@ class Messenger
         int i_talking_socket;            
         std::atomic<bool> b_listening;
         std::atomic<bool> b_thread_started;
+        bool asking;
+        can_frame cf_waiting_for;
+        std::mutex listening_mutex;
     protected:
         virtual void callback() = 0;
         std::thread th_listening_thread;
@@ -28,7 +32,7 @@ class Messenger
         Messenger(const std::string& interface, can_filter filter);
         ~Messenger();
         int send(can_frame frame);
-        int ask(can_frame &command);
+        bool ask(can_frame &command);
         bool is_listening();
         int stop();
         int restart();
