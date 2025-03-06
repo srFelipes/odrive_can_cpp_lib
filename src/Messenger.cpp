@@ -11,6 +11,7 @@
 #include <cstring>
 #include <poll.h>
 #include <linux/can/raw.h>
+#include <chrono>
 
 int create_socket(const std::string& interface){
         int output_socket;
@@ -97,15 +98,26 @@ int Messenger::send(can_frame frame){
     };
     return -1;
 }
-bool Messenger::ask(can_frame &command){
+bool Messenger::ask(can_frame &command, int timeout){
     can_frame petition = command;
     petition.can_id |= CAN_RTR_FLAG;
     cf_waiting_for = command;
     send(petition);
     asking = true;
-    while(asking){};    
+    auto start_time = std::chrono::steady_clock::now();
+    auto chrono_timeout = std::chrono::milliseconds(timeout);
+    auto current_time = start_time;
+    bool return_val = true;
+    while(asking){
+        auto diff = std::chrono::steady_clock::now()-start_time;
+        if (std::chrono::duration_cast<std::chrono::milliseconds>
+            (diff) > chrono_timeout){
+                return_val = false;
+                break;
+        }
+    };    
     command = cf_waiting_for;
-    return true;
+    return return_val;
 }
 bool Messenger::is_listening(){
     return b_listening;

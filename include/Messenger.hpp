@@ -32,7 +32,7 @@ class Messenger
         Messenger(const std::string& interface, can_filter filter);
         ~Messenger();
         int send(can_frame frame);
-        bool ask(can_frame &command);
+        bool ask(can_frame &command, int timeout=200);
         bool is_listening();
         int stop();
         int restart();

@@ -2,6 +2,7 @@
 #include <string>
 #include <iostream>
 #include <thread>
+#include <chrono>
 
 #include "Messenger.hpp"
 #include "test_utils.hpp"
@@ -260,4 +261,37 @@ TEST_F(msn_with_listener, ask_10_msgs){
         listen_and_answer_thread.join();
     }
     
+}
+
+TEST_F(msn_with_listener, ask_1_msg_timeout){
+    std::vector<can_frame> messages;
+
+    can_frame petition;
+    petition.can_id = (4 << 5) | (20);
+    petition.len = 0;
+    can_frame old_petition = petition;
+    EXPECT_FALSE(msn.ask(petition));
+    int wait_result = 
+        wait_for_condition_with_timeout(
+            [this](){return (1 == n_received_msgs);},
+            wait_timeout);
+    EXPECT_TRUE(1 == n_received_msgs);
+    EXPECT_TRUE(old_petition == petition);
+}
+
+TEST_F(msn_with_listener, ask_1_msg_timeout_different_val){
+    std::vector<can_frame> messages;
+
+    std::chrono::steady_clock::now();
+    can_frame petition;
+    petition.can_id = (4 << 5) | (20);
+    petition.len = 0;
+    can_frame old_petition = petition;
+    auto t1 = std::chrono::steady_clock::now();
+    EXPECT_FALSE(msn.ask(petition,10));
+    auto t2 = std::chrono::steady_clock::now();
+    auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
+    EXPECT_TRUE(diff.count() < 100);
+    EXPECT_TRUE(1 == n_received_msgs);
+    EXPECT_TRUE(old_petition == petition);
 }
