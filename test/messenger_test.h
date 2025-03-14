@@ -23,6 +23,14 @@ private:
     /* data */
     int number_of_callbacks;
 public:
+    void stop(){
+        thread_kill();
+    }
+    void restart(){
+        if (!is_listening()){
+            thread_start();
+        }
+    }
     void callback() override{
         number_of_callbacks++;
         dummy_last_msg = last_frame;

@@ -34,6 +34,4 @@ class Messenger
         int send(can_frame frame);
         bool ask(can_frame &command, int timeout=200);
         bool is_listening();
-        int stop();
-        int restart();
 };

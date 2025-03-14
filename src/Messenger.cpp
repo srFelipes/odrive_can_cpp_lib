@@ -122,11 +122,3 @@ bool Messenger::ask(can_frame &command, int timeout){
 bool Messenger::is_listening(){
     return b_listening;
 }
-int Messenger::stop(){
-    b_listening = false;
-    return -1;
-}
-int Messenger::restart(){
-    b_listening = true;
-    return -1;
-}
