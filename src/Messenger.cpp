@@ -54,10 +54,18 @@ void Messenger::listening_routine(){
                 if (bytes_read < 0) {
                     // Handle error
                     std::cout<<"read error odrv_listen\n";
-                } else{
-                    if (asking && (cf_waiting_for.can_id == last_frame.can_id)){
-                        cf_waiting_for = last_frame;
-                        asking = false;
+                }
+                else{
+                    if (ask_state == SENDING_REQUEST){ 
+                        if ((cf_waiting_for.can_id | CAN_RTR_FLAG) == last_frame.can_id){
+                            ask_state = WAITING_RESPONSE;
+                        }
+                    }
+                    else if (ask_state == WAITING_RESPONSE){
+                        if (cf_waiting_for.can_id == last_frame.can_id){
+                            cf_waiting_for = last_frame;
+                            ask_state = NOT_ASKING;
+                        }
                     }
                     callback();
                 }
@@ -76,9 +84,11 @@ Messenger::Messenger(const std::string& interface, can_filter filter):
         b_listening = false;
         i_talking_socket = create_socket(s_interface_name);
     }
+
 Messenger::~Messenger(){
     thread_kill();
 }
+
 bool Messenger::thread_start(){
     b_listening = true;
     b_thread_started = false;
@@ -86,39 +96,43 @@ bool Messenger::thread_start(){
     while(!b_thread_started){};
     return true;
 }
+
 void Messenger::thread_kill(){
     if (th_listening_thread.joinable()){
         b_listening = false;
         th_listening_thread.join();
     }
 }
+
 int Messenger::send(can_frame frame){
     if (write(i_talking_socket, &frame,sizeof(can_frame)) != -1){
         return 0;
     };
     return -1;
 }
+
 bool Messenger::ask(can_frame &command, int timeout){
     can_frame petition = command;
     petition.can_id |= CAN_RTR_FLAG;
     cf_waiting_for = command;
-    send(petition);
-    asking = true;
-    auto start_time = std::chrono::steady_clock::now();
     auto chrono_timeout = std::chrono::milliseconds(timeout);
+    ask_state = SENDING_REQUEST;
+    send(petition);
+    auto start_time = std::chrono::steady_clock::now();
     auto current_time = start_time;
     bool return_val = true;
-    while(asking){
+    while(ask_state){
         auto diff = std::chrono::steady_clock::now()-start_time;
         if (std::chrono::duration_cast<std::chrono::milliseconds>
             (diff) > chrono_timeout){
                 return_val = false;
                 break;
         }
-    };    
+    };
     command = cf_waiting_for;
     return return_val;
 }
+
 bool Messenger::is_listening(){
     return b_listening;
 }

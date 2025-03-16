@@ -8,6 +8,13 @@
 #include <mutex>
 
 #define MSN
+
+typedef enum{
+    NOT_ASKING,
+    SENDING_REQUEST,
+    WAITING_RESPONSE,
+}ask_state_t;
+
 class Messenger
 {
     private:
@@ -17,7 +24,7 @@ class Messenger
         int i_talking_socket;            
         std::atomic<bool> b_listening;
         std::atomic<bool> b_thread_started;
-        bool asking;
+        ask_state_t ask_state;
         can_frame cf_waiting_for;
         std::mutex listening_mutex;
     protected:
