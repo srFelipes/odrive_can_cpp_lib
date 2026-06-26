@@ -270,6 +270,24 @@ int wait_for_condition_with_timeout(const std::function <bool()> & condition,
     return -1;
 }
 
+
+/**
+ * @brief Test utility that listens on vcan0 and responds to incoming CAN frames.
+ *        Runs in its own thread, waits for a specific trigger frame, and replies
+ *        with one or all of the provided response frames depending on the mode.
+ * 
+ * @param messages Vector where messages[0] is the trigger frame to wait for,
+ *                 and messages[1..n] are the response frames to send upon a match.
+ * @param thread_started Set to true once the socket is bound and the poll loop
+ *                       is ready to receive — caller should spin-wait on this
+ *                       before proceeding.
+ * @param thread_listening Controls the poll loop lifetime. Set to false from the
+ *                         calling thread to stop the listener and exit cleanly.
+ * @param message_per_request If true, sends one response frame per trigger match
+ *                            (messages[1], then messages[2], etc.) and exits when
+ *                            all responses are exhausted. If false, sends all
+ *                            response frames on every trigger match.
+ */
 void listen_and_answer(
     const std::vector<can_frame> &messages,
     std::atomic <bool> &thread_started,
