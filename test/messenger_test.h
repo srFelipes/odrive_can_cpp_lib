@@ -311,7 +311,6 @@ TEST_F(msn_with_listener, ask_n_msgs){
     while(!wfmaa_started){};
     int wait_result;
     for (int k=0; k<num_of_messages; k++){
-        std::cout << "-------------" << std::endl;
         ASSERT_TRUE(msn.ask(petition,1000));
         wait_result = 
         wait_for_condition_with_timeout(
