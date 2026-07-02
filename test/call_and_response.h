@@ -30,9 +30,10 @@ struct testParams
 class callAndResponseCmds : public testing::TestWithParam<testParams>{
     protected:
     void SetUp(){
+        fixture_buffer.reserve(BUFFER_SIZE);
         fixture_listening = true;
         listener_started = false;
-        listening_thread = std::thread(listener,&fixture_buffer[0],&fixture_listening,&listener_started,&number_of_calls);
+        listening_thread = std::thread(listener,&fixture_buffer,&fixture_listening,&listener_started,&number_of_calls);
         while (!listener_started){}
     }
     void TearDown(){
@@ -44,7 +45,7 @@ class callAndResponseCmds : public testing::TestWithParam<testParams>{
     }
     
     std::atomic <int> number_of_calls;
-    can_frame fixture_buffer[BUFFER_SIZE];
+    std::vector<can_frame> fixture_buffer;
     std::atomic <bool> fixture_listening;
     std::atomic <bool> listener_started;
     std::thread listening_thread;

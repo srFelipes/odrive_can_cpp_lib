@@ -136,8 +136,9 @@ class msn_with_listener: public msn_fixture{
             thread_alive = true;
             thread_started = false;
             socket = create_socket();
+            fixture_cf_buffer.reserve(2050);
             fixture_thread = std::thread(listener,
-                                         fixture_cf_buffer,
+                                         &fixture_cf_buffer,
                                          &thread_alive,
                                          &thread_started,
                                          &n_received_msgs);
@@ -150,7 +151,7 @@ class msn_with_listener: public msn_fixture{
                 fixture_thread.join();
             }
         }
-        can_frame fixture_cf_buffer[100];
+        std::vector<can_frame> fixture_cf_buffer;
         std::thread fixture_thread;
         std::atomic <bool> thread_alive;
         std::atomic <bool> thread_started;
@@ -238,6 +239,7 @@ TEST_F(msn_with_listener, ask_10_msgs){
 
     for (int i=0; i<10; i++){
         expected_answer.data[0] = i;
+        expected_answer.len = 1;
         messages.push_back(expected_answer);
     }
     
@@ -256,6 +258,67 @@ TEST_F(msn_with_listener, ask_10_msgs){
             wait_timeout);
         EXPECT_TRUE(0 == wait_result);
         expected_answer.data[0] = k;
+        EXPECT_TRUE(expected_answer == petition);
+
+        EXPECT_TRUE(petition_for_thread == fixture_cf_buffer[2*k]);
+        EXPECT_TRUE(expected_answer == fixture_cf_buffer[2*k+1]);
+        petition.can_id = (4 << 5) | (20);
+        petition.len = 0;
+    }
+    
+    wfmaa_alive = false;
+    if (listen_and_answer_thread.joinable()){
+        listen_and_answer_thread.join();
+    }
+    
+}
+
+TEST_F(msn_with_listener, ask_n_msgs){
+    int num_of_messages = 1000;
+    std::atomic <bool> wfmaa_started;
+    std::atomic <bool> wfmaa_alive;
+
+    wfmaa_alive = true;
+    wfmaa_started = false;
+    std::vector<can_frame> messages;
+
+    can_frame petition;
+    petition.can_id = (4 << 5) | (20);
+    petition.len = 0;
+
+    can_frame expected_answer;
+    expected_answer.can_id = petition.can_id;
+    expected_answer.len = 1;
+
+    can_frame petition_for_thread = petition;
+    petition_for_thread.can_id |= CAN_RTR_FLAG;
+
+    messages.reserve(num_of_messages+1);
+    messages.push_back(petition_for_thread);
+
+    for (int i=0; i<num_of_messages; i++){
+        expected_answer.data[0] = 69;
+        expected_answer.len = 1;
+
+        messages.push_back(expected_answer);
+    }
+    
+    std::thread listen_and_answer_thread(listen_and_answer,
+                                         std::ref(messages),
+                                         std::ref(wfmaa_started),
+                                         std::ref(wfmaa_alive),
+                                         true);
+    while(!wfmaa_started){};
+    int wait_result;
+    for (int k=0; k<num_of_messages; k++){
+        std::cout << "-------------" << std::endl;
+        ASSERT_TRUE(msn.ask(petition,1000));
+        wait_result = 
+        wait_for_condition_with_timeout(
+            [this, k](){return (2*(k+1) == n_received_msgs);},
+            wait_timeout);
+        EXPECT_TRUE(0 == wait_result);
+        expected_answer.data[0] = 69;
         EXPECT_TRUE(expected_answer == petition);
 
         EXPECT_TRUE(petition_for_thread == fixture_cf_buffer[2*k]);

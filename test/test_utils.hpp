@@ -21,8 +21,8 @@
 
 bool operator==(const can_frame &lhs, const can_frame &rhs) {
     return (lhs.can_id == rhs.can_id &&
-            lhs.can_dlc == rhs.can_dlc &&
-            std::memcmp(lhs.data, rhs.data, lhs.can_dlc) == 0);
+         lhs.can_dlc == rhs.can_dlc &&
+         std::memcmp(lhs.data, rhs.data, lhs.can_dlc) == 0);
 }
 
 bool operator!=(const can_frame &lhs, const can_frame &rhs) {
@@ -205,7 +205,7 @@ void wait_for_msg_and_answer(
 }
 
 void listener(
-    can_frame* buffer,
+    std::vector<can_frame>* buffer,
     std::atomic <bool>* listening,
     std::atomic <bool>* ready,
     std::atomic <int> *num_of_calls){
@@ -228,7 +228,7 @@ void listener(
         if ((poll_size>0) & (pollfds[0].revents & POLLIN)){
             read_bytes = read(soc, &last_message, frame_size);
             if (read_bytes>0){
-                memcpy(&buffer[n_of_msgs],&last_message,frame_size);
+                buffer->push_back(std::move(last_message));
                 n_of_msgs++;
             }
             else if (read_bytes<0){
