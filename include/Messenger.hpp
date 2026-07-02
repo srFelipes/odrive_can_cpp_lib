@@ -24,7 +24,7 @@ class Messenger
         int i_talking_socket;            
         std::atomic<bool> b_listening;
         std::atomic<bool> b_thread_started;
-        ask_state_t ask_state;
+        std::atomic<ask_state_t> ask_state;
         can_frame cf_waiting_for;
         std::mutex listening_mutex;
     protected:
@@ -35,6 +35,7 @@ class Messenger
         bool listening_started;
         bool thread_start();
         void thread_kill();
+        void process_frame(can_frame& input_frame);
     public:
         Messenger(const std::string& interface, can_filter filter);
         ~Messenger();

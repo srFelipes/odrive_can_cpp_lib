@@ -40,13 +40,13 @@ void Messenger::listening_routine(){
     struct pollfd pollfds[1];
     pollfds[0].fd = i_listening_socket; // Set the file descriptor to monitor
     pollfds[0].events = POLLIN; // Set the events to monitor for (in this case, readability)
-    b_thread_started = true;
+    b_thread_started.store(true);
 
     // Set filter (accept only specific CAN IDs)
     can_filter filter[1] = {cf_filter};
     setsockopt(i_listening_socket, SOL_CAN_RAW, CAN_RAW_FILTER, &filter, sizeof(filter));
 
-    while (b_listening){
+    while (b_listening.load()){
         int i_n_of_events = poll(pollfds, 1, 1); // Monitor indefinitely for events on the file descriptor
         if (i_n_of_events > 0){
             if (pollfds[0].revents & POLLIN) {
@@ -56,15 +56,15 @@ void Messenger::listening_routine(){
                     std::cout<<"read error odrv_listen\n";
                 }
                 else{
-                    if (ask_state == SENDING_REQUEST){ 
+                    if (ask_state.load() == SENDING_REQUEST){ 
                         if ((cf_waiting_for.can_id | CAN_RTR_FLAG) == last_frame.can_id){
-                            ask_state = WAITING_RESPONSE;
+                            ask_state.store(WAITING_RESPONSE);
                         }
                     }
-                    else if (ask_state == WAITING_RESPONSE){
+                    else if (ask_state.load() == WAITING_RESPONSE){
                         if (cf_waiting_for.can_id == last_frame.can_id){
                             cf_waiting_for = last_frame;
-                            ask_state = NOT_ASKING;
+                            ask_state.store(NOT_ASKING);
                         }
                     }
                     callback();
@@ -81,7 +81,7 @@ void Messenger::listening_routine(){
 Messenger::Messenger(const std::string& interface, can_filter filter):
     s_interface_name(interface),
     cf_filter(filter){
-        b_listening = false;
+        b_listening.store(false);
         i_talking_socket = create_socket(s_interface_name);
     }
 
@@ -90,16 +90,16 @@ Messenger::~Messenger(){
 }
 
 bool Messenger::thread_start(){
-    b_listening = true;
-    b_thread_started = false;
+    b_listening.store(true);
+    b_thread_started.store(false);
     th_listening_thread = std::thread(&Messenger::listening_routine, this);
-    while(!b_thread_started){};
+    while(!b_thread_started.load()){};
     return true;
 }
 
 void Messenger::thread_kill(){
     if (th_listening_thread.joinable()){
-        b_listening = false;
+        b_listening.store(false);
         th_listening_thread.join();
     }
 }
@@ -116,12 +116,12 @@ bool Messenger::ask(can_frame &command, int timeout){
     petition.can_id |= CAN_RTR_FLAG;
     cf_waiting_for = command;
     auto chrono_timeout = std::chrono::milliseconds(timeout);
-    ask_state = SENDING_REQUEST;
+    ask_state.store(SENDING_REQUEST);
     send(petition);
     auto start_time = std::chrono::steady_clock::now();
     auto current_time = start_time;
     bool return_val = true;
-    while(ask_state){
+    while(ask_state.load()){
         auto diff = std::chrono::steady_clock::now()-start_time;
         if (std::chrono::duration_cast<std::chrono::milliseconds>
             (diff) > chrono_timeout){
@@ -134,5 +134,10 @@ bool Messenger::ask(can_frame &command, int timeout){
 }
 
 bool Messenger::is_listening(){
-    return b_listening;
+    return b_listening.load();
+}
+
+
+void Messenger::process_frame(can_frame& input_frame){
+
 }
