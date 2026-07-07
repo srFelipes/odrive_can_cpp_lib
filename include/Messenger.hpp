@@ -35,7 +35,9 @@ class Messenger
         bool listening_started;
         bool thread_start();
         void thread_kill();
-        void process_frame(can_frame& input_frame);
+        void process_frame(can_frame& input_frame,
+                           std::atomic<ask_state_t>& current_state,
+                           can_frame& expected_frame);
     public:
         Messenger(const std::string& interface, can_filter filter);
         ~Messenger();

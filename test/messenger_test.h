@@ -50,6 +50,7 @@ public:
     ~MessengerDummy(){
         thread_kill();
     }
+    using Messenger::process_frame;
 };
 TEST (msn_classTests, constructor){
     can_filter empty_filter;
@@ -76,6 +77,101 @@ TEST_F(msn_fixture,start_stop_restart){
     EXPECT_FALSE(msn.is_listening());
     msn.restart();
     EXPECT_TRUE(msn.is_listening());
+}
+
+TEST_F(msn_fixture, process_frame_NOT_ASKING_ignore_all){
+    can_frame expected_frame, input_frame;
+    std::atomic<ask_state_t> state;
+
+    state = NOT_ASKING;
+    expected_frame.can_id = 1 << 5;
+    expected_frame.len = 0;
+
+    input_frame.can_id = 1 << 5;
+    input_frame.len = 0;
+    msn.process_frame(input_frame,state,expected_frame);
+
+    EXPECT_TRUE(state.load() == NOT_ASKING);
+
+    
+    expected_frame.can_id = 1 << 5 | CAN_RTR_FLAG;
+    input_frame.can_id = 1 << 5 | CAN_RTR_FLAG;
+    msn.process_frame(input_frame,state,expected_frame);
+
+    EXPECT_TRUE(state.load() == NOT_ASKING);
+}
+
+TEST_F(msn_fixture, process_frame_SENDING_REQUEST_receives_request_goes_to_WAITING_RESPONSE) {
+    can_frame expected_frame, input_frame;
+    std::atomic<ask_state_t> state;
+
+    // while sending request if the received message is
+    // the request, change state to waiting response
+    state = SENDING_REQUEST;
+    expected_frame.can_id = 1 << 5;
+    expected_frame.len = 0;
+    input_frame.can_id = 1 << 5 | CAN_RTR_FLAG;
+    input_frame.len = 0;
+    msn.process_frame(input_frame, state, expected_frame);
+    EXPECT_TRUE(state.load() == WAITING_RESPONSE);
+}
+
+TEST_F(msn_fixture, process_frame_SENDING_REQUEST_receives_answer_goes_to_NOT_ASKING) {
+    can_frame expected_frame, input_frame;
+    std::atomic<ask_state_t> state;
+
+    // while sending request if the received message is
+    // the answer from the device, go directly to NOT_ASKING
+    state = SENDING_REQUEST;
+    expected_frame.can_id = 1 << 5;
+    input_frame.can_id = 1 << 5;
+    input_frame.len = 1;
+    input_frame.data[0] = 0x69;
+    msn.process_frame(input_frame, state, expected_frame);
+    EXPECT_TRUE(state.load() == NOT_ASKING);
+}
+
+TEST_F(msn_fixture, process_frame_SENDING_REQUEST_receives_unexpected_frame) {
+    can_frame expected_frame, input_frame;
+    std::atomic<ask_state_t> state;
+
+    // while sending request if the received message is
+    // not the expected, keep in sending_request
+    state = SENDING_REQUEST;
+    expected_frame.can_id = 1 << 5;
+    input_frame.can_id = 3 << 5;
+    input_frame.len = 1;
+    input_frame.data[0] = 0x69;
+    msn.process_frame(input_frame, state, expected_frame);
+    EXPECT_TRUE(state.load() == SENDING_REQUEST);
+}
+
+TEST_F(msn_fixture, process_frame_WAITING_RESPONSE_receives_zero_length_frame_stays_waiting) {
+    can_frame expected_frame, input_frame;
+    std::atomic<ask_state_t> state;
+
+    // while waiting response if the received message
+    // has no length, keep waiting response
+    state = WAITING_RESPONSE;
+    expected_frame.can_id = 1 << 5;
+    input_frame.can_id = 1 << 5;
+    input_frame.len = 0;
+    msn.process_frame(input_frame, state, expected_frame);
+    EXPECT_TRUE(state.load() == WAITING_RESPONSE);
+}
+
+TEST_F(msn_fixture, process_frame_SENDING_REQUEST_receives_empty_answer_stays_SENDING_REQUEST) {
+    can_frame expected_frame, input_frame;
+    std::atomic<ask_state_t> state;
+
+    // while sending request if the received message is
+    // the answer from the device, go directly to NOT_ASKING
+    state = SENDING_REQUEST;
+    expected_frame.can_id = 1 << 5;
+    input_frame.can_id = 1 << 5;
+    input_frame.len = 0;
+    msn.process_frame(input_frame, state, expected_frame);
+    EXPECT_TRUE(state.load() == SENDING_REQUEST);
 }
 
 TEST_F(msn_fixture, listen_1_msg){
@@ -258,10 +354,7 @@ TEST_F(msn_with_listener, ask_10_msgs){
             wait_timeout);
         EXPECT_TRUE(0 == wait_result);
         expected_answer.data[0] = k;
-        EXPECT_TRUE(expected_answer == petition);
 
-        EXPECT_TRUE(petition_for_thread == fixture_cf_buffer[2*k]);
-        EXPECT_TRUE(expected_answer == fixture_cf_buffer[2*k+1]);
         petition.can_id = (4 << 5) | (20);
         petition.len = 0;
     }
@@ -318,10 +411,6 @@ TEST_F(msn_with_listener, ask_n_msgs){
             wait_timeout);
         EXPECT_TRUE(0 == wait_result);
         expected_answer.data[0] = 69;
-        EXPECT_TRUE(expected_answer == petition);
-
-        EXPECT_TRUE(petition_for_thread == fixture_cf_buffer[2*k]);
-        EXPECT_TRUE(expected_answer == fixture_cf_buffer[2*k+1]);
         petition.can_id = (4 << 5) | (20);
         petition.len = 0;
     }

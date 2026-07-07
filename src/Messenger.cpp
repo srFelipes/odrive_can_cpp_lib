@@ -56,17 +56,7 @@ void Messenger::listening_routine(){
                     std::cout<<"read error odrv_listen\n";
                 }
                 else{
-                    if (ask_state.load() == SENDING_REQUEST){ 
-                        if ((cf_waiting_for.can_id | CAN_RTR_FLAG) == last_frame.can_id){
-                            ask_state.store(WAITING_RESPONSE);
-                        }
-                    }
-                    else if (ask_state.load() == WAITING_RESPONSE){
-                        if (cf_waiting_for.can_id == last_frame.can_id){
-                            cf_waiting_for = last_frame;
-                            ask_state.store(NOT_ASKING);
-                        }
-                    }
+                    process_frame(last_frame, ask_state, cf_waiting_for);
                     callback();
                 }
             }
@@ -138,6 +128,22 @@ bool Messenger::is_listening(){
 }
 
 
-void Messenger::process_frame(can_frame& input_frame){
-
+void Messenger::process_frame(can_frame& input_frame, 
+                              std::atomic<ask_state_t>& current_state,
+                              can_frame& expected_frame){
+    if (current_state.load() == SENDING_REQUEST){ 
+        if ((expected_frame.can_id | CAN_RTR_FLAG) == input_frame.can_id){
+            current_state.store(WAITING_RESPONSE);
+        }
+        else if ((expected_frame.can_id == input_frame.can_id) && (input_frame.len > 0)){
+            expected_frame = input_frame;
+            current_state.store(NOT_ASKING);
+        }
+    }
+    else if (current_state.load() == WAITING_RESPONSE){
+        if ((expected_frame.can_id == input_frame.can_id) && (input_frame.len > 0)){
+            expected_frame = input_frame;
+            current_state.store(NOT_ASKING);
+        }
+    }
 }
